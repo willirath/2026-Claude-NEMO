@@ -2,12 +2,13 @@
 
 ## Overview
 
-Build and run the NEMO ocean model GYRE_PISCES configuration inside Docker,
-then analyze the output with Python (xarray/matplotlib/cartopy).
+Build and run the NEMO ocean model GYRE configuration (physics-only, no
+PISCES) inside Docker, then analyze the output with Python
+(xarray/matplotlib/cartopy) in Jupyter notebooks.
 
-GYRE_PISCES is an idealized double-gyre basin on a beta-plane (closed
-rectangular box, ~30N, 1deg resolution, 31 vertical levels) with PISCES
-biogeochemistry. Analytical forcing — no input data files needed.
+GYRE is an idealized double-gyre basin on a beta-plane (closed rectangular
+box, ~30N, 1deg resolution, 31 vertical levels). Analytical forcing — no
+input data files needed.
 
 ---
 
@@ -22,7 +23,8 @@ Single Dockerfile that:
 - IOIPSL (bundled in `nemo/ext/IOIPSL`) provides native NetCDF output
 - Produces a runnable image with the `nemo` executable
 
-The cpp keys become: `key_top key_linssh key_vco_1d` (drop `key_xios`).
+The cpp keys become: `key_linssh key_vco_1d` (drop `key_xios` and
+`key_top`).
 
 Output uses the IOIPSL path in `diawri.F90` (line 554+), which writes
 traditional `grid_T`, `grid_U`, `grid_V`, `grid_W` NetCDF files every
@@ -38,12 +40,40 @@ Base image: `debian:bookworm` or `ubuntu:24.04`.
 - `mpirun -np 1 ./nemo` (single process for first test)
 - Verify it produces `grid_{T,U,V,W}*.nc` output files
 
-### 3. Analyze output with Python
+### 3. Analyze output with Jupyter notebooks
 
-- Use xarray to open output NetCDF files
-- Plot fields (SST, SSH, velocity, PISCES tracers) with
-  matplotlib + cartopy
-- Jupyter notebook for interactive exploration
+Use Jupyter notebooks (literate programming) instead of standalone .py
+scripts — easier for humans to investigate and iterate on.
+
+Notebooks live in `analysis/` and are run via `pixi run jupyter lab` or
+headless with `pixi run jupyter execute`.
+
+#### 3a. SSH analysis (`analysis/ssh.ipynb`)
+
+- Open grid_T, extract `sossheig` (Sea Surface Height)
+- Compute and plot temporal variance (spatial map, cartopy)
+- Time series of domain-mean SSH
+- Replaces the existing `ssh_variance.py` script
+
+#### 3b. SST analysis (`analysis/sst.ipynb`)
+
+- Open grid_T, extract `sosstsst` (Sea Surface Temperature)
+- Plot mean SST field and temporal evolution
+- Meridional SST gradient
+
+#### 3c. Circulation analysis (`analysis/circulation.ipynb`)
+
+- Open grid_U and grid_V, extract surface velocity components
+- Plot surface current vectors / streamlines
+- Compute and plot barotropic streamfunction or kinetic energy
+
+#### Makefile `analyze` target
+
+Update to execute notebooks headless:
+```
+analyze:
+	pixi run jupyter execute analysis/*.ipynb
+```
 
 ### 4. (Deferred) Add XIOS support
 
@@ -63,6 +93,6 @@ custom output streams, or higher-res configs), add XIOS:
 | `nemo/ext/IOIPSL/` | Bundled IOIPSL library (native NetCDF I/O) |
 | `nemo/arch/arch-linux_gfortran.fcm` | Template arch file for gfortran |
 | `nemo/cfgs/GYRE_PISCES/` | Config definition |
-| `nemo/cfgs/GYRE_PISCES/cpp_GYRE_PISCES.fcm` | CPP keys (currently `key_top key_linssh key_vco_1d key_xios`) |
+| `nemo/cfgs/GYRE_PISCES/cpp_GYRE_PISCES.fcm` | CPP keys (now `key_linssh key_vco_1d`) |
 | `nemo/cfgs/GYRE_PISCES/EXPREF/namelist_cfg` | Main runtime config (`nn_write=60`) |
 | `nemo/src/OCE/DIA/diawri.F90` | Diagnostics output — IOIPSL path at line 554 |
