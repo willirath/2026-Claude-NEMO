@@ -1,8 +1,7 @@
-# NEMO GYRE_PISCES
+# NEMO GYRE
 
 Dockerized [NEMO](https://www.nemo-ocean.eu/) ocean model running the
-GYRE_PISCES configuration — an idealized double-gyre basin on a beta-plane
-with simplified PISCES biogeochemistry.
+GYRE configuration — an idealized double-gyre basin on a beta-plane.
 
 ## Prerequisites
 
@@ -39,7 +38,7 @@ Analysis generates `output/ssh_variance.png`.
 - **Resolution**: ~1° (32×22 grid, 31 vertical levels)
 - **Run length**: 2 years (4320 timesteps, dt=4h)
 - **Output**: IOIPSL (no XIOS dependency)
-- **Biogeochemistry**: PISCES simplified (P2Z), external forcing disabled
+- **Physics only**: no biogeochemistry (PISCES/TOP disabled)
 
 ## Structure
 

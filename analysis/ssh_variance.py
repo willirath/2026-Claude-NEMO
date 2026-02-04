@@ -1,4 +1,4 @@
-"""Plot SSH variance from GYRE_PISCES output."""
+"""Plot SSH variance from NEMO GYRE output."""
 
 import sys
 from pathlib import Path
@@ -22,7 +22,7 @@ pcm = ax.pcolormesh(
 fig.colorbar(pcm, ax=ax, label="SSH variance (m²)")
 ax.set_xlabel("Longitude")
 ax.set_ylabel("Latitude")
-ax.set_title("GYRE_PISCES — Sea Surface Height Variance (2-year run)")
+ax.set_title("NEMO GYRE — Sea Surface Height Variance (2-year run)")
 ax.set_aspect("equal")
 fig.tight_layout()
 
