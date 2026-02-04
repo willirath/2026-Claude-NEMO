@@ -39,12 +39,12 @@ The simulation produces 10-day averaged NetCDF files:
 - `mesh_mask.nc` — grid geometry and land/sea mask
 - `restart*.nc` — restart files for continuing the run
 
-Analysis notebooks (in `analysis/`) are executed headless by `make analyze`:
-- `ssh.ipynb` — SSH variance and time series
-- `sst.ipynb` — mean SST, temporal evolution, meridional gradient
-- `circulation.ipynb` — surface currents and kinetic energy
-- `heat_salt.ipynb` — surface heat flux, heat content, mean salinity
-- `forcing_ke.ipynb` — wind stress, total kinetic energy
+Analysis notebooks (in [`analysis/`](analysis/)) are executed headless by `make analyze`:
+- [`ssh.ipynb`](analysis/ssh.ipynb) — SSH variance and time series
+- [`sst.ipynb`](analysis/sst.ipynb) — mean SST, temporal evolution, meridional gradient
+- [`circulation.ipynb`](analysis/circulation.ipynb) — surface currents and kinetic energy
+- [`heat_salt.ipynb`](analysis/heat_salt.ipynb) — surface heat flux, heat content, mean salinity
+- [`forcing_ke.ipynb`](analysis/forcing_ke.ipynb) — wind stress, total kinetic energy
 
 Open interactively with `pixi run jupyter lab`.
 
@@ -57,16 +57,14 @@ Open interactively with `pixi run jupyter lab`.
 
 ## Structure
 
-```
-Dockerfile              # builds NEMO in Debian bookworm
-Makefile                # build/run/analyze pipeline
-docker/arch-docker.fcm  # compiler/linker settings for Docker
-analysis/               # Jupyter analysis notebooks
-figures/                # plot PNGs for README
-output/                 # simulation output (gitignored *.nc)
-plans/                  # development milestone notes
-nemo/                   # NEMO source (git submodule)
-```
+- [`Dockerfile`](Dockerfile) — builds NEMO in Debian bookworm
+- [`Makefile`](Makefile) — build/run/analyze pipeline
+- [`docker/arch-docker.fcm`](docker/arch-docker.fcm) — compiler/linker settings for Docker
+- [`analysis/`](analysis/) — Jupyter analysis notebooks
+- [`figures/`](figures/) — plot PNGs for README
+- `output/` — simulation output (gitignored `*.nc`)
+- [`plans/`](plans/) — development milestone notes
+- [`nemo/`](nemo/) — NEMO source (git submodule)
 
 ## Setup from scratch
 
