@@ -5,11 +5,11 @@ GYRE configuration — an idealized double-gyre basin on a beta-plane.
 
 | SSH Variance | Mean SST | Surface Currents |
 |:---:|:---:|:---:|
-| ![SSH variance](figures/ssh_variance.png) | ![Mean SST](figures/sst_mean.png) | ![Surface currents](figures/surface_currents.png) |
+| [![SSH variance](figures/ssh_variance.png)](analysis/ssh.ipynb) | [![Mean SST](figures/sst_mean.png)](analysis/sst.ipynb) | [![Surface currents](figures/surface_currents.png)](analysis/circulation.ipynb) |
 
 | Surface KE | Heat Flux | Wind Stress |
 |:---:|:---:|:---:|
-| ![Surface KE](figures/surface_ke.png) | ![Heat flux](figures/heat_flux.png) | ![Wind stress](figures/wind_stress.png) |
+| [![Surface KE](figures/surface_ke.png)](analysis/circulation.ipynb) | [![Heat flux](figures/heat_flux.png)](analysis/heat_salt.ipynb) | [![Wind stress](figures/wind_stress.png)](analysis/forcing_ke.ipynb) |
 
 ## Prerequisites
 
@@ -39,14 +39,23 @@ The simulation produces 10-day averaged NetCDF files:
 - `mesh_mask.nc` — grid geometry and land/sea mask
 - `restart*.nc` — restart files for continuing the run
 
-Analysis notebooks (in [`analysis/`](analysis/)) are executed headless by `make analyze`:
+Analysis notebooks (in [`analysis/`](analysis/)) are executed headless by:
+
+```bash
+make analyze
+```
+
 - [`ssh.ipynb`](analysis/ssh.ipynb) — SSH variance and time series
 - [`sst.ipynb`](analysis/sst.ipynb) — mean SST, temporal evolution, meridional gradient
 - [`circulation.ipynb`](analysis/circulation.ipynb) — surface currents and kinetic energy
 - [`heat_salt.ipynb`](analysis/heat_salt.ipynb) — surface heat flux, heat content, mean salinity
 - [`forcing_ke.ipynb`](analysis/forcing_ke.ipynb) — wind stress, total kinetic energy
 
-Open interactively with `pixi run jupyter lab`.
+Open interactively with:
+
+```bash
+pixi run jupyter lab
+```
 
 ## Configuration
 
