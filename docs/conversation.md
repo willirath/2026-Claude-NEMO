@@ -289,42 +289,6 @@ Reverted. A reminder that cross-platform rendering is a real constraint.
 
 ---
 
-## Commit history
-
-```
-ea7735e Initialize Pixi project with scientific Python dependencies
-6f1792c Add NEMO as submodule and write overall project plan
-ef12114 Add Dockerfile, arch file, and Makefile for NEMO GYRE build
-b8f5fdd Fix Docker build: portable lib paths, .dockerignore, error handling
-f7d2e89 Run GYRE_PISCES simulation successfully
-22a6aab Add SSH variance analysis from 2-year GYRE_PISCES run
-5796ad3 Add make all pipeline: build → run → analyze
-7177be7 Add README with setup and usage instructions
-8142119 Drop PISCES, rename config to GYRE, fix naming throughout
-b1b37e7 Add SSH variance plot to README
-9a4ad59 Update plan: Jupyter notebooks for analysis, drop PISCES references
-740f804 Replace analysis scripts with Jupyter notebooks
-9d07c0e Fix analysis plots: mask boundaries, log-scale KE
-87cb9ec Add cartopy maps with stereographic projection and coastlines
-3846518 Reduce cartopy map margin from 8 to 4 degrees
-28b7839 Add heat/salt budget and wind stress/KE analysis notebooks
-25dbc83 Rotate velocity and wind stress vectors from grid to geographic coords
-ee525cc Remove grid labels from cartopy maps, keep gridlines
-1e01307 Reduce cartopy map margin to 0.5 degrees
-5931fcf Add analysis figures to README, remove old ssh_variance.png
-8dbcf4a Link files and directories in README instead of backtick listing
-ccd6036 Increase font sizes, shorten titles, make figures clickable in README
-562ad8e Remove table headers from figure grid in README
-a77e093 Add section anchors to README figure links
-aad50a5 Remove section anchors from README figure links
-90dca9e Link figures to full-size PNGs, add notebook links below each
-dd62e37 Gitignore Jupyter checkpoint directories
-7a74755 Add conversation log documenting the full build session
-5691b48 Increase resolution to 1/5° with 4 MPI ranks
-```
-
----
-
 ## Part IV: Resolution Upgrade
 
 ### 17. Increasing to 1/5° resolution
