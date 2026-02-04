@@ -1,3 +1,8 @@
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+# simulation output (regenerable via make run)
+output/*.nc
+
+
