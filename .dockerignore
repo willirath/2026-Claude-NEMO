@@ -1,0 +1,8 @@
+.git
+.gitmodules
+nemo/.git
+output/
+plans/
+*.lock
+*.md
+.pixi/

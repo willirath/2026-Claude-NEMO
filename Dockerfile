@@ -15,12 +15,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Install architecture file early (changes rarely, aids caching)
+COPY docker/arch-docker.fcm /nemo/arch/arch-docker.fcm
+
 # Copy NEMO source
 COPY nemo /nemo
 WORKDIR /nemo
-
-# Install architecture file
-COPY docker/arch-docker.fcm /nemo/arch/arch-docker.fcm
 
 # Override cpp keys: drop key_xios, keep the rest
 RUN echo 'bld::tool::fppkeys   key_top key_linssh key_vco_1d' \
@@ -30,3 +30,4 @@ RUN echo 'bld::tool::fppkeys   key_top key_linssh key_vco_1d' \
 RUN ./makenemo -m docker -r GYRE_PISCES -n MY_GYRE -j 4
 
 WORKDIR /nemo/cfgs/MY_GYRE/EXP00
+CMD ["bash"]

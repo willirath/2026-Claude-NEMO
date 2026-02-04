@@ -1,8 +1,9 @@
 # Architecture file for Docker (Debian bookworm + gfortran + OpenMPI)
 # No XIOS — uses IOIPSL for output
+# Lib paths left empty — mpif90 wrapper resolves them automatically
 
 %NCDF_INC            -I/usr/include
-%NCDF_LIB            -L/usr/lib/x86_64-linux-gnu -lnetcdff -lnetcdf
+%NCDF_LIB            -lnetcdff -lnetcdf
 %XIOS_INC
 %XIOS_LIB
 
