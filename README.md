@@ -3,12 +3,9 @@
 Dockerized [NEMO](https://www.nemo-ocean.eu/) ocean model running the
 GYRE configuration — an idealized double-gyre basin on a beta-plane.
 
-| SSH Variance | Mean SST | Surface Currents |
+| | | |
 |:---:|:---:|:---:|
 | [![SSH variance](figures/ssh_variance.png)](analysis/ssh.ipynb) | [![Mean SST](figures/sst_mean.png)](analysis/sst.ipynb) | [![Surface currents](figures/surface_currents.png)](analysis/circulation.ipynb) |
-
-| Surface KE | Heat Flux | Wind Stress |
-|:---:|:---:|:---:|
 | [![Surface KE](figures/surface_ke.png)](analysis/circulation.ipynb) | [![Heat flux](figures/heat_flux.png)](analysis/heat_salt.ipynb) | [![Wind stress](figures/wind_stress.png)](analysis/forcing_ke.ipynb) |
 
 ## Prerequisites
