@@ -1,5 +1,7 @@
 # NEMO GYRE
 
+![SSH variance](output/ssh_variance.png)
+
 Dockerized [NEMO](https://www.nemo-ocean.eu/) ocean model running the
 GYRE configuration — an idealized double-gyre basin on a beta-plane.
 
