@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-Dockerized NEMO ocean model running the GYRE configuration — an idealized wind-driven double-gyre basin on a beta-plane. The pipeline builds NEMO in Docker, runs a 2-year simulation, and analyzes the output with Python.
+Dockerized NEMO ocean model running the GYRE configuration — an idealized wind-driven double-gyre basin on a beta-plane. The pipeline builds NEMO in Docker, runs a 6-month simulation at 1/5° resolution, and analyzes the output with Python.
 
 ## Quick Reference
 
 ```
 make all        # Full pipeline: build → run → analyze
 make build      # Build Docker image (compiles NEMO with gfortran/OpenMPI)
-make run        # Run 2-year simulation, output NetCDF to output/
+make run        # Run 6-month simulation (4 MPI ranks), output NetCDF to output/
 make analyze    # Execute analysis notebooks (headless)
 make clean      # Remove output/
 ```
@@ -18,7 +18,8 @@ make clean      # Remove output/
 
 - `Dockerfile` — Debian bookworm image, compiles NEMO with `makenemo`
 - `docker/arch-docker.fcm` — Compiler/library config for Docker build
-- `nemo/` — NEMO source (git submodule). Config lives in `nemo/cfgs/GYRE_PISCES/EXPREF/`
+- `docker/namelist_cfg` — NEMO runtime config (resolution, timestep, run length); overrides submodule default
+- `nemo/` — NEMO source (git submodule, read-only). Base config in `nemo/cfgs/GYRE_PISCES/EXPREF/`
 - `analysis/ssh.ipynb` — SSH variance and domain-mean time series
 - `analysis/sst.ipynb` — Mean SST, temporal evolution, meridional gradient
 - `analysis/circulation.ipynb` — Surface currents and kinetic energy
@@ -30,20 +31,20 @@ make clean      # Remove output/
 
 - **Config**: GYRE (physics-only, no PISCES/biogeochemistry)
 - **CPP keys**: `key_linssh key_vco_1d` (linear free surface, 1D vertical coord)
-- **Grid**: 32×22 horizontal, 31 vertical levels, 1° resolution
-- **Timestep**: 4 hours (14400s), total 4320 steps = 720 days (2 years, 360-day calendar)
-- **Output**: 10-day averaged NetCDF via IOIPSL (no XIOS), `nn_write=60`
+- **Grid**: 160×110 horizontal, 31 vertical levels, 1/5° resolution
+- **Timestep**: 48 min (2880s), total 5400 steps = 180 days (6 months, 360-day calendar)
+- **Output**: 10-day averaged NetCDF via IOIPSL (no XIOS), `nn_write=300`
 - **Forcing**: Analytical (user-defined, no input files needed)
-- **MPI**: Single process (`-np 1`)
+- **MPI**: 4 ranks with domain decomposition, recombined via `rebuild_nemo`
 
 ## Output Files
 
-All in `output/`, prefixed `GYRE_10d_00010101_00021230_`:
-- `grid_T_0000.nc` — Temperature, salinity, SSH (`sossheig`), SST, SSS
-- `grid_U_0000.nc` — U-velocity
-- `grid_V_0000.nc` — V-velocity
-- `grid_W_0000.nc` — W-velocity
-- `GYRE_00004320_restart.nc` — Restart file
+All in `output/`, prefixed `GYRE_10d_00010101_00010630_`:
+- `grid_T.nc` — Temperature, salinity, SSH (`sossheig`), SST, SSS
+- `grid_U.nc` — U-velocity
+- `grid_V.nc` — V-velocity
+- `grid_W.nc` — W-velocity
+- `GYRE_00005400_restart_000{0..3}.nc` — Per-rank restart files
 - `mesh_mask.nc` — Grid geometry and land/sea masks
 
 ## Key Decisions
@@ -51,7 +52,8 @@ All in `output/`, prefixed `GYRE_10d_00010101_00021230_`:
 - **No XIOS**: Uses bundled IOIPSL for NetCDF output, avoiding a complex dependency
 - **`--hostname nemo`** in `docker run`: Prevents gfortran format overflow from long container IDs
 - **Physics-only**: `key_top` (PISCES) dropped to simplify the build
-- **Namelist**: `nemo/cfgs/GYRE_PISCES/EXPREF/namelist_cfg` controls all runtime parameters
+- **Namelist**: `docker/namelist_cfg` (project-local override) controls all runtime parameters; submodule is read-only
+- **MPI rebuild**: Multi-rank output recombined with `rebuild_nemo` tool (compiled in Docker image)
 
 ## Analysis
 

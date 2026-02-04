@@ -25,7 +25,7 @@ Individual targets:
 
 ```bash
 make build      # build Docker image with compiled NEMO
-make run        # run 2-year simulation, output to output/
+make run        # run 6-month simulation (4 MPI ranks), output to output/
 make analyze    # generate plots from simulation output
 make clean      # remove output directory
 ```
@@ -58,9 +58,10 @@ pixi run jupyter lab
 
 ## Configuration
 
-- **Resolution**: ~1° (32×22 grid, 31 vertical levels)
-- **Run length**: 2 years (4320 timesteps, dt=4h)
-- **Output**: IOIPSL (no XIOS dependency)
+- **Resolution**: 1/5° (160×110 grid, 31 vertical levels)
+- **Run length**: 6 months (5400 timesteps, dt=48 min)
+- **MPI**: 4 ranks with domain decomposition (rebuild_nemo recombines output)
+- **Output**: 10-day averaged NetCDF via IOIPSL (no XIOS dependency)
 - **Physics only**: no biogeochemistry (PISCES/TOP disabled)
 
 ## Structure
@@ -68,6 +69,7 @@ pixi run jupyter lab
 - [`Dockerfile`](Dockerfile) — builds NEMO in Debian bookworm
 - [`Makefile`](Makefile) — build/run/analyze pipeline
 - [`docker/arch-docker.fcm`](docker/arch-docker.fcm) — compiler/linker settings for Docker
+- [`docker/namelist_cfg`](docker/namelist_cfg) — NEMO runtime configuration (resolution, timestep, run length)
 - [`analysis/`](analysis/) — Jupyter analysis notebooks
 - [`figures/`](figures/) — plot PNGs for README
 - `output/` — simulation output (gitignored `*.nc`)
