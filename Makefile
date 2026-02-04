@@ -1,7 +1,7 @@
 IMAGE := nemo-gyre
 OUTPUT_DIR := output
 
-.PHONY: all build run analyze clean
+.PHONY: all build run analyze slides clean
 
 all: build run analyze
 
@@ -22,6 +22,10 @@ run:
 
 analyze:
 	pixi run jupyter execute --inplace analysis/ssh.ipynb analysis/sst.ipynb analysis/circulation.ipynb analysis/heat_salt.ipynb analysis/forcing_ke.ipynb
+
+slides:
+	@echo "Serving slides at http://localhost:8000/slides.html"
+	cd docs && pixi run python -m http.server 8000
 
 clean:
 	rm -rf $(OUTPUT_DIR)

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building a NEMO GYRE Simulation with Claude Code</title>
+<link rel="stylesheet" href="reveal/reveal.css">
+<link rel="stylesheet" href="reveal/white.css">
+<style>
+  .reveal { font-size: 32px; }
+  .reveal h1 { font-size: 1.8em; }
+  .reveal h2 { font-size: 1.4em; }
+  .reveal h3 { font-size: 1.1em; }
+  .reveal blockquote { font-size: 0.85em; background: #f9f9f9; border-left: 4px solid #888; padding: 0.5em 1em; width: 85%; }
+  .reveal table { font-size: 0.65em; margin: 0.5em auto; }
+  .reveal th, .reveal td { padding: 0.25em 0.6em; }
+  .reveal pre { font-size: 0.55em; width: 90%; }
+  .reveal code { font-size: 0.9em; }
+  .reveal img { max-height: 55vh; }
+  .reveal .small { font-size: 0.7em; color: #666; }
+  .reveal section { text-align: left; }
+  .reveal h1, .reveal h2, .reveal h3 { text-align: center; }
+  .reveal .center { text-align: center; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ════════════════════════════════════════════ -->
+<!-- INTRO -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <section>
+    <h1>Building a NEMO GYRE Simulation<br>with Claude Code</h1>
+    <blockquote class="center">I want to run the NEMO ocean model Gyre configuration
+    which is defined in the main NEMO repo. Let's plan this out.</blockquote>
+    <p class="center small">Three Claude Code sessions, one sitting &mdash; February 2026</p>
+  </section>
+
+  <section>
+    <h2>The Goal</h2>
+    <p>Stand up a <strong>NEMO ocean model</strong> simulation from scratch:</p>
+    <ul>
+      <li>Dockerized build of a large Fortran codebase</li>
+      <li>Idealized double-gyre configuration (mid-latitude Atlantic analog)</li>
+      <li>Automated analysis pipeline with Jupyter notebooks</li>
+    </ul>
+    <p style="margin-top:1em;">The kind of project that normally involves reading documentation,
+    trial-and-error compilation, and a lot of plumbing &mdash;
+    done here as a conversation.</p>
+  </section>
+
+  <section>
+    <h2>Plan-Driven Workflow</h2>
+    <blockquote>Plans go to plans dir and are written as markdown files.</blockquote>
+    <blockquote>Review the plan and find out if we need to adapt the analysis stage.</blockquote>
+    <blockquote>Commit updated plan and then act on stage 03.</blockquote>
+    <p>Numbered milestones in <code>plans/</code> gave the AI a shared roadmap
+    and the user a way to steer without micromanaging.</p>
+    <pre><code>nemo/                       # NEMO source (git submodule, read-only)
+docker/namelist_cfg         # Runtime config (our overrides)
+plans/                      # Milestone docs (markdown)
+analysis/*.ipynb            # Jupyter notebooks
+Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
+    <p class="small">Key constraint: <code>nemo/</code> is a submodule &mdash; we can read it
+    but must not modify it.</p>
+  </section>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- GETTING IT RUNNING -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <section>
+    <h1>Getting It Running</h1>
+    <blockquote class="center">Don't go too far without talking to me.</blockquote>
+  </section>
+
+  <section>
+    <h3>Challenging the AI's Assumptions</h3>
+    <blockquote>Defer XIOS until we notice we need it.</blockquote>
+    <p>Claude claimed XIOS (an external I/O server) was a hard dependency.
+    The user knew better:</p>
+    <blockquote>I think that's not accurate. Review IO again. There should be
+    a way to write _{T,U,V,W} files without XIOS.</blockquote>
+    <p>Investigation proved the user right &mdash; a bundled library (IOIPSL) handles
+    output natively. This eliminated an entire build stage and a major
+    source of complexity.</p>
+  </section>
+
+  <section>
+    <h3>Build, Debug, Simplify</h3>
+    <p>Several rounds of fix-and-retry &mdash; typical for deploying Fortran codes
+    in containers. The AI handled the mechanical debugging; the user made
+    the architectural calls:</p>
+    <blockquote>What's the PISCES part in our simulation? Should we erase it completely?</blockquote>
+    <blockquote>Drop it. RENAME TO GYRE.</blockquote>
+    <blockquote>Should we track the workflow in a Makefile right away?</blockquote>
+    <blockquote>Check if (looking forward) we might be running into problems
+    with current structure.</blockquote>
+    <p class="small">Proactive audit surfaced four issues (missing .dockerignore, hardcoded
+    paths, swallowed errors, poor layer ordering) &mdash; all fixed before moving on.</p>
+  </section>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- ANALYSIS -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <section>
+    <h1>Analysis</h1>
+    <blockquote class="center">Are you sure about the wind stress and current directions?<br>
+    They are in delx, dely direction, I think.</blockquote>
+    <blockquote class="center">Add analyses: surface heat flux, total heat content time series,
+    total KE time series, mean salinity time series (should be constant),
+    wind stress quiver.</blockquote>
+  </section>
+
+  <section>
+    <h3>Steering the Analysis</h3>
+    <blockquote>Let's use Jupyter notebooks instead of .py files. Literate
+    programming is easier to investigate by humans.</blockquote>
+    <blockquote>Put the plots on a regional map with cartopy. Use stereographic projection,
+    add coastlines. Don't worry that the rect box doesn't fit the coastlines.
+    We <em>want</em> to see its approx position on the globe and its shape in
+    relation to the real Atlantic basin.</blockquote>
+    <blockquote>Add analyses: surface heat flux (zonal mean and map), total heat content
+    time series, total KE time series, mean salinity time series (should be constant),
+    wind stress quiver. Note the grid dims in mesh_mask for the volume integrals.</blockquote>
+    <p class="small">The user specified format, projection, and physics; Claude created
+    the notebooks, checked variable names, and wired up the Makefile.</p>
+  </section>
+
+  <section>
+    <h3>Catching What the AI Missed</h3>
+    <p>Claude plotted vectors as if grid-aligned = geographic.
+    But the GYRE grid is rotated <strong>45&deg;</strong> &mdash; every vector was wrong.
+    Plausible-looking, physically incorrect plots.</p>
+    <div class="center">
+      <img src="./wind_stress.png" alt="Wind stress (corrected)" style="max-height: 30vh;">
+    </div>
+    <p class="center small">After correction: westerlies in the north, trades in the south.</p>
+    <blockquote>Look at outputs (esp plots) and tune them. There's a few obvious issues.</blockquote>
+    <p class="small">Multiple rounds: masking, log-scale for KE,
+    margins 8&deg; &rarr; 0.5&deg;, font sizes tuned for readability.</p>
+  </section>
+
+  <section>
+    <h3>Results</h3>
+    <div class="center" style="display: flex; justify-content: center; gap: 15px;">
+      <img src="./sst_mean.png" alt="Mean SST" style="max-height: 45vh;">
+      <img src="./heat_flux.png" alt="Surface heat flux" style="max-height: 45vh;">
+    </div>
+    <p class="center small">Volume-mean salinity confirmed constant at ~35.315 PSU &mdash;
+    the sanity check the user asked for.</p>
+  </section>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- SCALING UP -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <section>
+    <h1>Scaling Up</h1>
+    <blockquote class="center">Let's increase the spatial resolution to 1/5 deg. Git branch first.</blockquote>
+    <blockquote class="center">Might want to go for a really short run first?</blockquote>
+  </section>
+
+  <section>
+    <h3>Resolution and Parallelization</h3>
+    <blockquote>Let's increase the spatial resolution to 1/5 deg. Git branch first.</blockquote>
+    <p>Grid: 32&times;22 &rarr; 160&times;110. Claude derived all dependent parameters
+    (timestep, diffusion, output frequency) from scaling arguments.
+    10-step smoke test, then 5-minute run, then full simulation.</p>
+    <blockquote>Can we use OpenMP for shared memory?</blockquote>
+    <p>Claude investigated: NEMO has zero OpenMP directives &mdash; parallelism is
+    purely MPI. Switched to 4 ranks.
+    <strong>2.6&times; speedup</strong> (0.10 &rarr; 0.039 s/step).</p>
+  </section>
+
+  <section>
+    <h3>Discipline and Closure</h3>
+    <blockquote>Let's figure out how we deal with the fact that we cannot mod
+    the nemo/ contents directly.</blockquote>
+    <p>Claude had edited inside the read-only submodule. The user flagged it;
+    solution was to keep a project-local namelist copied in at Docker build time.</p>
+    <blockquote>Add savefig calls, subset the quiver, extend run, then <code>make all</code>.</blockquote>
+    <p>One prompt, four changes. Full pipeline ran end to end.
+    Feature branch merged to <code>main</code>.</p>
+  </section>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- OBSERVATIONS -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <section>
+    <h1>Observations</h1>
+    <blockquote class="center">I think that's not accurate.</blockquote>
+    <blockquote class="center">Are you sure about the wind stress and current directions?</blockquote>
+    <blockquote class="center">You burn through (unnecessary?) context fast.</blockquote>
+  </section>
+
+  <section>
+    <h3>Human vs AI</h3>
+    <table>
+      <tr><th></th><th>Human</th><th>AI</th></tr>
+      <tr><td><strong>Strengths</strong></td>
+        <td>Domain knowledge, architectural judgment,<br>testing instincts, quality review</td>
+        <td>Source navigation, mechanical iteration,<br>parameter arithmetic, debugging cascades</td></tr>
+      <tr><td><strong>Examples</strong></td>
+        <td>XIOS is optional; vectors need rotation;<br>
+          "short run first"; submodule hygiene;<br>
+          <em>"Drop the anchors again. They are not rendering<br>
+          consistently between Jupyter Lab, GitLab, and VS Code."</em></td>
+        <td>Finding IOIPSL in Fortran source;<br>
+          editing 5 notebooks + Makefile + README;<br>
+          deriving CFL-scaled timesteps;<br>
+          compiling rebuild_nemo from source</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h3>The Pattern</h3>
+    <p>A consistent division of labor:</p>
+    <ul>
+      <li><strong>Human:</strong> high-level direction, domain knowledge, quality judgment</li>
+      <li><strong>AI:</strong> implementation, exploration, mechanical iteration</li>
+    </ul>
+    <p>The human course-corrected frequently &mdash; not because the AI was failing,
+    but because scientific computing requires judgment calls that come from
+    experience with the tools and the physics.</p>
+    <p>The AI was most effective as a <strong>fast, tireless implementer</strong>
+    that could be redirected quickly. Not a replacement for expertise,
+    but a multiplier for it.</p>
+    <p class="small">Caveats: context limits hit twice; the AI confidently stated
+    incorrect facts and produced plausible but wrong output; repo conventions
+    needed explicit enforcement.</p>
+  </section>
+</section>
+
+</div>
+</div>
+<script type="module">
+import Reveal from './reveal/reveal.esm.js';
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  width: 1280,
+  height: 720,
+  margin: 0.08,
+  transition: 'slide',
+});
+</script>
+</body>
+</html>
