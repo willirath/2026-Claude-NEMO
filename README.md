@@ -5,8 +5,10 @@ GYRE configuration — an idealized double-gyre basin on a beta-plane.
 
 | | | |
 |:---:|:---:|:---:|
-| [![SSH variance](figures/ssh_variance.png)](analysis/ssh.ipynb) | [![Mean SST](figures/sst_mean.png)](analysis/sst.ipynb) | [![Surface currents](figures/surface_currents.png)](analysis/circulation.ipynb) |
-| [![Surface KE](figures/surface_ke.png)](analysis/circulation.ipynb) | [![Heat flux](figures/heat_flux.png)](analysis/heat_salt.ipynb) | [![Wind stress](figures/wind_stress.png)](analysis/forcing_ke.ipynb) |
+| [![SSH variance](figures/ssh_variance.png)](figures/ssh_variance.png) | [![Mean SST](figures/sst_mean.png)](figures/sst_mean.png) | [![Surface currents](figures/surface_currents.png)](figures/surface_currents.png) |
+| [ssh.ipynb](analysis/ssh.ipynb) | [sst.ipynb](analysis/sst.ipynb) | [circulation.ipynb](analysis/circulation.ipynb) |
+| [![Surface KE](figures/surface_ke.png)](figures/surface_ke.png) | [![Heat flux](figures/heat_flux.png)](figures/heat_flux.png) | [![Wind stress](figures/wind_stress.png)](figures/wind_stress.png) |
+| [circulation.ipynb](analysis/circulation.ipynb) | [heat_salt.ipynb](analysis/heat_salt.ipynb) | [forcing_ke.ipynb](analysis/forcing_ke.ipynb) |
 
 ## Prerequisites
 
