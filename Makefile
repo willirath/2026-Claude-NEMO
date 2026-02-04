@@ -8,7 +8,7 @@ build:
 
 run:
 	mkdir -p $(OUTPUT_DIR)
-	docker run --rm -v $(CURDIR)/$(OUTPUT_DIR):/output $(IMAGE) \
+	docker run --rm --hostname nemo -v $(CURDIR)/$(OUTPUT_DIR):/output $(IMAGE) \
 		bash -c 'mpirun --allow-run-as-root -np 1 ./nemo && cp -v *.nc /output/'
 
 clean:
