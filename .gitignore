@@ -5,4 +5,5 @@
 # simulation output (regenerable via make run)
 output/*.nc
 
-
+# Jupyter checkpoints
+.ipynb_checkpoints/
