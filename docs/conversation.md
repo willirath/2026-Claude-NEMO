@@ -319,7 +319,85 @@ a77e093 Add section anchors to README figure links
 aad50a5 Remove section anchors from README figure links
 90dca9e Link figures to full-size PNGs, add notebook links below each
 dd62e37 Gitignore Jupyter checkpoint directories
+7a74755 Add conversation log documenting the full build session
+5691b48 Increase resolution to 1/5° with 4 MPI ranks
 ```
+
+---
+
+## Part IV: Resolution Upgrade
+
+### 17. Increasing to 1/5° resolution
+
+> **User:** Let's increase the spatial resolution to 1/5 deg. Git branch
+> first.
+
+Claude created `feature/fifth-degree-resolution` and updated the NEMO
+namelist parameters:
+
+| Parameter | 1° | 1/5° | Rationale |
+|---|---|---|---|
+| `nn_GYRE` | 1 | 5 | Grid: 32×22 → 160×110 |
+| `rn_Dt` | 14400 s | 2880 s | CFL scales with grid spacing |
+| `nn_itend` | 4320 | 5400 | 6-month run |
+| `nn_write` | 60 | 300 | Maintain 10-day output |
+| `rn_Ld` | 100 km | 20 km | Scale diffusion with grid |
+| `rn_Lv` | 100 km | 20 km | Scale viscosity with grid |
+
+> **User:** Test your work. Might want to go for a really short run first?
+
+Claude ran a 10-step smoke test, then a 5-minute (3000-step) run to
+verify the configuration. Both passed cleanly.
+
+### 18. MPI parallelization
+
+> **User:** Can we use OpenMP for shared memory?
+
+Claude investigated the NEMO source and found **zero OpenMP directives**
+— NEMO's parallelism is entirely MPI domain decomposition. Adding
+`-fopenmp` to compiler flags would have no effect.
+
+> **User:** Try 4 ranks.
+
+Switching from `-np 1` to `-np 4` required:
+- Building `rebuild_nemo` (Fortran tool for recombining per-rank NetCDF
+  files) in the Dockerfile
+- Adding a rebuild step to the Makefile run target
+- Installing `ksh` in the container (required by the rebuild wrapper)
+- Updating notebook filenames (rebuilt files drop the `_0000` suffix)
+
+A smoke test with 10 steps failed at the rebuild stage — but only
+because `nn_write=300` meant zero output records were written. A 300-step
+test confirmed the rebuild works when there's actual data.
+
+Timing: **0.039 s/step** with 4 ranks vs **0.10 s/step** single-rank — a
+**2.6× speedup**.
+
+### 19. Keeping the submodule read-only
+
+> **User:** Let's figure out how we deal with the fact that we cannot mod
+> the nemo/ contents directly.
+
+The namelist had been edited in-place inside the `nemo/` submodule. Claude
+moved it to `docker/namelist_cfg` (tracked in the project repo) and added
+a `COPY` layer in the Dockerfile to override the submodule's default at
+build time. The submodule was reverted to its original state.
+
+### 20. Final pipeline
+
+> **User:** Add savefig calls, subset the quiver, extend run, then
+> `make all`.
+
+Changes applied to the analysis notebooks:
+- **savefig**: 6 plot cells now write PNGs to `../figures/` automatically
+- **Quiver skip**: 2 → 5 (matching the 5× grid refinement)
+
+The full pipeline (`make all`) ran successfully: build, 6-month
+simulation at 1/5° with 4 MPI ranks, rebuild, analysis with figure
+export. Total wall time under 10 minutes.
+
+Committed on `feature/fifth-degree-resolution`, then fast-forwarded
+`main` and deleted the feature branch.
 
 ---
 
@@ -339,6 +417,21 @@ dd62e37 Gitignore Jupyter checkpoint directories
   GitLab, and VS Code and found inconsistencies that Claude couldn't
   have predicted.
 
+- **No OpenMP in NEMO.** The user suggested OpenMP for shared-memory
+  parallelism. Claude investigated and correctly reported that NEMO has
+  zero `!$omp` directives — but the user had to prompt the
+  investigation. The right answer (MPI ranks) was the obvious
+  alternative.
+
+- **Submodule hygiene.** Claude initially edited files inside the `nemo/`
+  submodule. The user flagged that these changes can't be pushed and
+  asked for a clean separation. The solution — a project-local namelist
+  copied in at Docker build time — was straightforward once prompted.
+
+- **Quiver density.** At 5× resolution, the original `skip=2` quiver
+  stride produced an unreadable arrow field. The user caught this and
+  suggested scaling the skip.
+
 ### What the AI handled well
 
 - **Mechanical iteration.** Editing 5 notebooks, re-executing, exporting
@@ -353,6 +446,20 @@ dd62e37 Gitignore Jupyter checkpoint directories
   missing PISCES files — each required reading logs, tracing the issue,
   and applying a targeted fix.
 
+- **Resolution scaling.** Given `nn_GYRE=5`, Claude correctly derived
+  all dependent parameters (timestep, diffusion lengths, output
+  frequency, iteration counts) from CFL and physical scaling arguments.
+
+- **Incremental testing.** Smoke-testing with 10 steps before committing
+  to long runs caught the rebuild_nemo issue (zero time records) early.
+  Timing a 1-month run to estimate full-run cost avoided a blind 36-minute
+  wait.
+
+- **Build system plumbing.** Compiling `rebuild_nemo` from Fortran
+  source, wiring it into the Makefile run target with proper shell
+  escaping, and handling the filename suffix change across all notebooks
+  — unglamorous but necessary infrastructure work.
+
 ### The interaction pattern
 
 The session followed a consistent rhythm: the user gave high-level
@@ -361,6 +468,13 @@ implementation work, and the user reviewed results and course-corrected.
 Domain expertise (oceanography, NEMO specifics) came from the user;
 implementation labor (code editing, execution, file management) came from
 the AI.
+
+The resolution upgrade session showed a tighter feedback loop: the user
+steered aggressively on testing strategy ("short run first," "check
+timing," "abort — try MPI"), while Claude handled the parameter
+arithmetic and build/run mechanics. The user's instinct to measure
+before committing (timing a 1-month run) saved significant wall-clock
+time.
 
 Context limits were hit twice, requiring session continuations. The
 earlier build session consumed significant context on NEMO source
