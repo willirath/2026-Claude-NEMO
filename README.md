@@ -3,6 +3,14 @@
 Dockerized [NEMO](https://www.nemo-ocean.eu/) ocean model running the
 GYRE configuration — an idealized double-gyre basin on a beta-plane.
 
+| SSH Variance | Mean SST | Surface Currents |
+|:---:|:---:|:---:|
+| ![SSH variance](figures/ssh_variance.png) | ![Mean SST](figures/sst_mean.png) | ![Surface currents](figures/surface_currents.png) |
+
+| Surface KE | Heat Flux | Wind Stress |
+|:---:|:---:|:---:|
+| ![Surface KE](figures/surface_ke.png) | ![Heat flux](figures/heat_flux.png) | ![Wind stress](figures/wind_stress.png) |
+
 ## Prerequisites
 
 - Docker
@@ -35,6 +43,8 @@ Analysis notebooks (in `analysis/`) are executed headless by `make analyze`:
 - `ssh.ipynb` — SSH variance and time series
 - `sst.ipynb` — mean SST, temporal evolution, meridional gradient
 - `circulation.ipynb` — surface currents and kinetic energy
+- `heat_salt.ipynb` — surface heat flux, heat content, mean salinity
+- `forcing_ke.ipynb` — wind stress, total kinetic energy
 
 Open interactively with `pixi run jupyter lab`.
 
@@ -52,6 +62,7 @@ Dockerfile              # builds NEMO in Debian bookworm
 Makefile                # build/run/analyze pipeline
 docker/arch-docker.fcm  # compiler/linker settings for Docker
 analysis/               # Jupyter analysis notebooks
+figures/                # plot PNGs for README
 output/                 # simulation output (gitignored *.nc)
 plans/                  # development milestone notes
 nemo/                   # NEMO source (git submodule)
