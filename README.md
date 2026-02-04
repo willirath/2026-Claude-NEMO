@@ -5,8 +5,8 @@ GYRE configuration — an idealized double-gyre basin on a beta-plane.
 
 | | | |
 |:---:|:---:|:---:|
-| [![SSH variance](figures/ssh_variance.png)](analysis/ssh.ipynb#ssh-temporal-variance) | [![Mean SST](figures/sst_mean.png)](analysis/sst.ipynb#time-mean-sst) | [![Surface currents](figures/surface_currents.png)](analysis/circulation.ipynb#surface-current-vectors) |
-| [![Surface KE](figures/surface_ke.png)](analysis/circulation.ipynb#surface-kinetic-energy) | [![Heat flux](figures/heat_flux.png)](analysis/heat_salt.ipynb#surface-heat-flux--map) | [![Wind stress](figures/wind_stress.png)](analysis/forcing_ke.ipynb#wind-stress) |
+| [![SSH variance](figures/ssh_variance.png)](analysis/ssh.ipynb) | [![Mean SST](figures/sst_mean.png)](analysis/sst.ipynb) | [![Surface currents](figures/surface_currents.png)](analysis/circulation.ipynb) |
+| [![Surface KE](figures/surface_ke.png)](analysis/circulation.ipynb) | [![Heat flux](figures/heat_flux.png)](analysis/heat_salt.ipynb) | [![Wind stress](figures/wind_stress.png)](analysis/forcing_ke.ipynb) |
 
 ## Prerequisites
 
