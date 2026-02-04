@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Building a NEMO GYRE Simulation with Claude Code</title>
+<title>Claude vs. Nemo</title>
 <link rel="stylesheet" href="reveal/reveal.css">
 <link rel="stylesheet" href="reveal/white.css">
 <style>
@@ -16,7 +16,7 @@
   .reveal th, .reveal td { padding: 0.25em 0.6em; }
   .reveal pre { font-size: 0.55em; width: 90%; }
   .reveal code { font-size: 0.9em; }
-  .reveal img { max-height: 55vh; }
+  .reveal img { max-height: 500px; }
   .reveal .small { font-size: 0.7em; color: #666; }
   .reveal section { text-align: left; }
   .reveal h1, .reveal h2, .reveal h3 { text-align: center; }
@@ -32,10 +32,12 @@
 <!-- ════════════════════════════════════════════ -->
 <section>
   <section>
-    <h1>Building a NEMO GYRE Simulation<br>with Claude Code</h1>
+    <h1>Claude vs. Nemo</h1>
     <blockquote class="center">I want to run the NEMO ocean model Gyre configuration
     which is defined in the main NEMO repo. Let's plan this out.</blockquote>
     <p class="center small">Three Claude Code sessions, one sitting &mdash; February 2026</p>
+    <p class="center small"><a href="https://github.com/willirath/2026-Claude-NEMO">github.com/willirath/2026-Claude-NEMO</a>
+    &bull; <a href="./conversation.md">conversation log</a></p>
   </section>
 
   <section>
@@ -49,22 +51,6 @@
     <p style="margin-top:1em;">The kind of project that normally involves reading documentation,
     trial-and-error compilation, and a lot of plumbing &mdash;
     done here as a conversation.</p>
-  </section>
-
-  <section>
-    <h2>Plan-Driven Workflow</h2>
-    <blockquote>Plans go to plans dir and are written as markdown files.</blockquote>
-    <blockquote>Review the plan and find out if we need to adapt the analysis stage.</blockquote>
-    <blockquote>Commit updated plan and then act on stage 03.</blockquote>
-    <p>Numbered milestones in <code>plans/</code> gave the AI a shared roadmap
-    and the user a way to steer without micromanaging.</p>
-    <pre><code>nemo/                       # NEMO source (git submodule, read-only)
-docker/namelist_cfg         # Runtime config (our overrides)
-plans/                      # Milestone docs (markdown)
-analysis/*.ipynb            # Jupyter notebooks
-Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
-    <p class="small">Key constraint: <code>nemo/</code> is a submodule &mdash; we can read it
-    but must not modify it.</p>
   </section>
 </section>
 
@@ -90,17 +76,49 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
   </section>
 
   <section>
-    <h3>Build, Debug, Simplify</h3>
-    <p>Several rounds of fix-and-retry &mdash; typical for deploying Fortran codes
-    in containers. The AI handled the mechanical debugging; the user made
-    the architectural calls:</p>
-    <blockquote>What's the PISCES part in our simulation? Should we erase it completely?</blockquote>
-    <blockquote>Drop it. RENAME TO GYRE.</blockquote>
+    <h3>Plan-Driven Workflow</h3>
+    <blockquote>Plans go to plans dir and are written as markdown files.</blockquote>
+    <blockquote>Review the plan and find out if we need to adapt the analysis stage.</blockquote>
+    <blockquote>Commit updated plan and then act on stage 03.</blockquote>
+    <p>Numbered milestones in <code>plans/</code> gave the AI a shared roadmap
+    and the user a way to steer without micromanaging.</p>
+    <pre><code>nemo/                       # NEMO source (git submodule, read-only)
+docker/namelist_cfg         # Runtime config (our overrides)
+plans/                      # Milestone docs (markdown)
+analysis/*.ipynb            # Jupyter notebooks
+Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
+    <p class="small">Key constraint: <code>nemo/</code> is a submodule &mdash; we can read it
+    but must not modify it.</p>
+  </section>
+
+  <section>
+    <h3>Proactive Review</h3>
     <blockquote>Should we track the workflow in a Makefile right away?</blockquote>
     <blockquote>Check if (looking forward) we might be running into problems
     with current structure.</blockquote>
-    <p class="small">Proactive audit surfaced four issues (missing .dockerignore, hardcoded
-    paths, swallowed errors, poor layer ordering) &mdash; all fixed before moving on.</p>
+    <p>Before moving on, the user asked Claude to audit the setup.
+    Four issues surfaced: missing <code>.dockerignore</code>, hardcoded x86_64 paths
+    (would break on ARM Mac), error-swallowing <code>|| true</code>, and poor
+    Docker layer ordering.</p>
+    <p>All fixed before they could cause problems downstream.</p>
+  </section>
+
+  <section>
+    <h3>The Debugging Loop</h3>
+    <p>Building and running NEMO in Docker required several rounds of
+    fix-and-retry &mdash; typical for deploying Fortran codes in containers:</p>
+    <ul>
+      <li><strong>Build:</strong> <code>makenemo -j12</code> fails &mdash; needs <code>-j 4</code> (space-separated);
+        missing <code>liburi-perl</code> in the container</li>
+      <li><strong>Runtime:</strong> Fortran format overflow &mdash; Docker container IDs too long
+        for NEMO's hostname field. Fixed with <code>--hostname nemo</code></li>
+      <li><strong>Dependencies:</strong> Biogeochemistry module (PISCES) pulling in
+        external forcing files that don't exist in a clean setup</li>
+    </ul>
+    <p>The AI traced each error and applied targeted fixes.
+    The user made the architectural call:</p>
+    <blockquote>What's the PISCES part in our simulation? Should we erase it completely?</blockquote>
+    <blockquote>Drop it. RENAME TO GYRE.</blockquote>
   </section>
 </section>
 
@@ -112,9 +130,21 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
     <h1>Analysis</h1>
     <blockquote class="center">Are you sure about the wind stress and current directions?<br>
     They are in delx, dely direction, I think.</blockquote>
+    <blockquote class="center">Look at outputs (esp plots) and tune them. There's a few obvious issues.</blockquote>
     <blockquote class="center">Add analyses: surface heat flux, total heat content time series,
     total KE time series, mean salinity time series (should be constant),
     wind stress quiver.</blockquote>
+  </section>
+
+  <section>
+    <h3>Catching What the AI Missed</h3>
+    <p>Claude plotted vectors as if grid-aligned = geographic.
+    But the GYRE grid is rotated <strong>45&deg;</strong> &mdash; every vector was wrong.
+    Plausible-looking, physically incorrect plots.</p>
+    <div class="center">
+      <img src="./wind_stress.png" alt="Wind stress (corrected)" style="max-height: 500px;">
+    </div>
+    <p class="center small">After correction: westerlies in the north, trades in the south.</p>
   </section>
 
   <section>
@@ -125,32 +155,15 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
     add coastlines. Don't worry that the rect box doesn't fit the coastlines.
     We <em>want</em> to see its approx position on the globe and its shape in
     relation to the real Atlantic basin.</blockquote>
-    <blockquote>Add analyses: surface heat flux (zonal mean and map), total heat content
-    time series, total KE time series, mean salinity time series (should be constant),
-    wind stress quiver. Note the grid dims in mesh_mask for the volume integrals.</blockquote>
     <p class="small">The user specified format, projection, and physics; Claude created
     the notebooks, checked variable names, and wired up the Makefile.</p>
   </section>
 
   <section>
-    <h3>Catching What the AI Missed</h3>
-    <p>Claude plotted vectors as if grid-aligned = geographic.
-    But the GYRE grid is rotated <strong>45&deg;</strong> &mdash; every vector was wrong.
-    Plausible-looking, physically incorrect plots.</p>
-    <div class="center">
-      <img src="./wind_stress.png" alt="Wind stress (corrected)" style="max-height: 30vh;">
-    </div>
-    <p class="center small">After correction: westerlies in the north, trades in the south.</p>
-    <blockquote>Look at outputs (esp plots) and tune them. There's a few obvious issues.</blockquote>
-    <p class="small">Multiple rounds: masking, log-scale for KE,
-    margins 8&deg; &rarr; 0.5&deg;, font sizes tuned for readability.</p>
-  </section>
-
-  <section>
     <h3>Results</h3>
     <div class="center" style="display: flex; justify-content: center; gap: 15px;">
-      <img src="./sst_mean.png" alt="Mean SST" style="max-height: 45vh;">
-      <img src="./heat_flux.png" alt="Surface heat flux" style="max-height: 45vh;">
+      <img src="./sst_mean.png" alt="Mean SST" style="max-height: 500px;">
+      <img src="./heat_flux.png" alt="Surface heat flux" style="max-height: 500px;">
     </div>
     <p class="center small">Volume-mean salinity confirmed constant at ~35.315 PSU &mdash;
     the sanity check the user asked for.</p>
@@ -169,7 +182,6 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
 
   <section>
     <h3>Resolution and Parallelization</h3>
-    <blockquote>Let's increase the spatial resolution to 1/5 deg. Git branch first.</blockquote>
     <p>Grid: 32&times;22 &rarr; 160&times;110. Claude derived all dependent parameters
     (timestep, diffusion, output frequency) from scaling arguments.
     10-step smoke test, then 5-minute run, then full simulation.</p>
@@ -180,11 +192,7 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
   </section>
 
   <section>
-    <h3>Discipline and Closure</h3>
-    <blockquote>Let's figure out how we deal with the fact that we cannot mod
-    the nemo/ contents directly.</blockquote>
-    <p>Claude had edited inside the read-only submodule. The user flagged it;
-    solution was to keep a project-local namelist copied in at Docker build time.</p>
+    <h3>Final Pipeline</h3>
     <blockquote>Add savefig calls, subset the quiver, extend run, then <code>make all</code>.</blockquote>
     <p>One prompt, four changes. Full pipeline ran end to end.
     Feature branch merged to <code>main</code>.</p>
@@ -203,7 +211,19 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
   </section>
 
   <section>
-    <h3>Human vs AI</h3>
+    <h3>Enforcing Conventions</h3>
+    <blockquote>Let's figure out how we deal with the fact that we cannot mod
+    the nemo/ contents directly.</blockquote>
+    <p>Claude had edited inside the read-only <code>nemo/</code> submodule.
+    The user flagged it; solution was to keep a project-local namelist
+    copied in at Docker build time.</p>
+    <p>The AI treated the submodule as just another directory.
+    Repo structure conventions needed to be explicitly enforced &mdash;
+    the AI didn't infer them from context.</p>
+  </section>
+
+  <section>
+    <h3>The Pattern</h3>
     <table>
       <tr><th></th><th>Human</th><th>AI</th></tr>
       <tr><td><strong>Strengths</strong></td>
@@ -219,21 +239,7 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
           deriving CFL-scaled timesteps;<br>
           compiling rebuild_nemo from source</td></tr>
     </table>
-  </section>
-
-  <section>
-    <h3>The Pattern</h3>
-    <p>A consistent division of labor:</p>
-    <ul>
-      <li><strong>Human:</strong> high-level direction, domain knowledge, quality judgment</li>
-      <li><strong>AI:</strong> implementation, exploration, mechanical iteration</li>
-    </ul>
-    <p>The human course-corrected frequently &mdash; not because the AI was failing,
-    but because scientific computing requires judgment calls that come from
-    experience with the tools and the physics.</p>
-    <p>The AI was most effective as a <strong>fast, tireless implementer</strong>
-    that could be redirected quickly. Not a replacement for expertise,
-    but a multiplier for it.</p>
+    <p style="margin-top:0.8em;">Not a replacement for expertise, but a <strong>multiplier</strong> for it.</p>
     <p class="small">Caveats: context limits hit twice; the AI confidently stated
     incorrect facts and produced plausible but wrong output; repo conventions
     needed explicit enforcement.</p>
