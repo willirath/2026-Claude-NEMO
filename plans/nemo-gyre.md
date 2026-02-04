@@ -53,7 +53,7 @@ headless with `pixi run jupyter execute`.
 - Open grid_T, extract `sossheig` (Sea Surface Height)
 - Compute and plot temporal variance (spatial map, cartopy)
 - Time series of domain-mean SSH
-- Replaces the existing `ssh_variance.py` script
+- Replaced the old `ssh_variance.py` script
 
 #### 3b. SST analysis (`analysis/sst.ipynb`)
 

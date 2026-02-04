@@ -1,7 +1,5 @@
 # NEMO GYRE
 
-![SSH variance](output/ssh_variance.png)
-
 Dockerized [NEMO](https://www.nemo-ocean.eu/) ocean model running the
 GYRE configuration — an idealized double-gyre basin on a beta-plane.
 
@@ -33,7 +31,12 @@ The simulation produces 10-day averaged NetCDF files:
 - `mesh_mask.nc` — grid geometry and land/sea mask
 - `restart*.nc` — restart files for continuing the run
 
-Analysis generates `output/ssh_variance.png`.
+Analysis notebooks (in `analysis/`) are executed headless by `make analyze`:
+- `ssh.ipynb` — SSH variance and time series
+- `sst.ipynb` — mean SST, temporal evolution, meridional gradient
+- `circulation.ipynb` — surface currents and kinetic energy
+
+Open interactively with `pixi run jupyter lab`.
 
 ## Configuration
 
@@ -48,7 +51,7 @@ Analysis generates `output/ssh_variance.png`.
 Dockerfile              # builds NEMO in Debian bookworm
 Makefile                # build/run/analyze pipeline
 docker/arch-docker.fcm  # compiler/linker settings for Docker
-analysis/               # Python analysis scripts
+analysis/               # Jupyter analysis notebooks
 output/                 # simulation output (gitignored *.nc)
 plans/                  # development milestone notes
 nemo/                   # NEMO source (git submodule)

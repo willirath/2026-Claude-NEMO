@@ -14,7 +14,7 @@ run:
 		bash -c 'mpirun --allow-run-as-root -np 1 ./nemo && cp -v *.nc /output/'
 
 analyze:
-	pixi run python analysis/ssh_variance.py $(OUTPUT_DIR)
+	pixi run jupyter execute --inplace analysis/ssh.ipynb analysis/sst.ipynb analysis/circulation.ipynb
 
 clean:
 	rm -rf $(OUTPUT_DIR)
