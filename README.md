@@ -69,12 +69,12 @@ pixi run jupyter lab
 - [`Dockerfile`](Dockerfile) — builds NEMO in Debian bookworm
 - [`Makefile`](Makefile) — build/run/analyze pipeline
 - [`docker/arch-docker.fcm`](docker/arch-docker.fcm) — compiler/linker settings for Docker
-- [`docker/namelist_cfg`](docker/namelist_cfg) — NEMO runtime configuration (resolution, timestep, run length)
+- [`configs/GYRE_DOCKER/`](configs/GYRE_DOCKER/) — NEMO configuration (CPP keys, namelist, source overrides)
 - [`analysis/`](analysis/) — Jupyter analysis notebooks
 - [`figures/`](figures/) — plot PNGs for README
 - `output/` — simulation output (gitignored `*.nc`)
 - [`plans/`](plans/) — development milestone notes
-- [`nemo/`](nemo/) — NEMO source (git submodule)
+- [`nemo/`](nemo/) — NEMO source (git submodule, read-only)
 
 ## Setup from scratch
 

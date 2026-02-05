@@ -83,7 +83,7 @@
     <p>Numbered milestones in <code>plans/</code> gave the AI a shared roadmap
     and the user a way to steer without micromanaging.</p>
     <pre><code>nemo/                       # NEMO source (git submodule, read-only)
-docker/namelist_cfg         # Runtime config (our overrides)
+configs/GYRE_DOCKER/        # NEMO config (CPP keys, namelist, MY_SRC)
 plans/                      # Milestone docs (markdown)
 analysis/*.ipynb            # Jupyter notebooks
 Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
@@ -215,8 +215,8 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
     <blockquote>Let's figure out how we deal with the fact that we cannot mod
     the nemo/ contents directly.</blockquote>
     <p>Claude had edited inside the read-only <code>nemo/</code> submodule.
-    The user flagged it; solution was to keep a project-local namelist
-    copied in at Docker build time.</p>
+    The user flagged it; solution was an external config directory
+    (<code>configs/GYRE_DOCKER/</code>) built via <code>makenemo -t</code>.</p>
     <p>The AI treated the submodule as just another directory.
     Repo structure conventions needed to be explicitly enforced &mdash;
     the AI didn't infer them from context.</p>
