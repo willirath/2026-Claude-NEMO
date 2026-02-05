@@ -16,10 +16,13 @@ make clean      # Remove output/
 
 ## Project Structure
 
-- `Dockerfile` — Debian bookworm image, compiles NEMO with `makenemo`
+- `Dockerfile` — Debian bookworm image, compiles NEMO with `makenemo -t /configs`
 - `docker/arch-docker.fcm` — Compiler/library config for Docker build
-- `docker/namelist_cfg` — NEMO runtime config (resolution, timestep, run length); overrides submodule default
-- `nemo/` — NEMO source (git submodule, read-only). Base config in `nemo/cfgs/GYRE_PISCES/EXPREF/`
+- `configs/GYRE_DOCKER/` — Project-specific NEMO config (see `configs/GYRE_DOCKER/README.md`):
+  - `cpp_GYRE_DOCKER.fcm` — CPP keys (compile-time features)
+  - `EXPREF/namelist_cfg` — Runtime parameters (resolution, timestep, output)
+  - `MY_SRC/` — Custom Fortran source overrides (empty, uses GYRE defaults)
+- `nemo/` — NEMO source (git submodule, read-only — files inside can't be tracked by parent repo)
 - `analysis/ssh.ipynb` — SSH variance and domain-mean time series
 - `analysis/sst.ipynb` — Mean SST, temporal evolution, meridional gradient
 - `analysis/circulation.ipynb` — Surface currents and kinetic energy
@@ -51,8 +54,8 @@ All in `output/`, prefixed `GYRE_10d_00010101_00010630_`:
 
 - **No XIOS**: Uses bundled IOIPSL for NetCDF output, avoiding a complex dependency
 - **`--hostname nemo`** in `docker run`: Prevents gfortran format overflow from long container IDs
-- **Physics-only**: `key_top` (PISCES) dropped to simplify the build
-- **Namelist**: `docker/namelist_cfg` (project-local override) controls all runtime parameters; submodule is read-only
+- **Physics-only**: `key_top` (PISCES) dropped to simplify the build (see `configs/GYRE_DOCKER/cpp_GYRE_DOCKER.fcm`)
+- **External config**: `configs/GYRE_DOCKER/` holds all project-specific NEMO settings, built via `makenemo -t`; submodule stays read-only
 - **MPI rebuild**: Multi-rank output recombined with `rebuild_nemo` tool (compiled in Docker image)
 
 ## Analysis

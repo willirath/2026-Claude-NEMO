@@ -1,0 +1,11 @@
+# CPP keys for GYRE_DOCKER configuration
+#
+# Physics-only build (no biogeochemistry, no XIOS):
+#   - key_linssh  : Linear free surface (simplified SSH dynamics)
+#   - key_vco_1d  : 1D vertical coordinate (uniform across domain)
+#
+# Excluded from GYRE_PISCES reference:
+#   - key_xios    : Not using XIOS for output (uses IOIPSL instead)
+#   - key_top     : No passive tracers / PISCES biogeochemistry
+#
+bld::tool::fppkeys   key_linssh key_vco_1d
