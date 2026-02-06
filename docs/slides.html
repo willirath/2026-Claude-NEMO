@@ -35,7 +35,7 @@
     <h1>Claude vs. Nemo</h1>
     <blockquote class="center">I want to run the NEMO ocean model Gyre configuration
     which is defined in the main NEMO repo. Let's plan this out.</blockquote>
-    <p class="center small">Three Claude Code sessions, one sitting &mdash; February 2026</p>
+    <p class="center small">Multiple Claude Code sessions across three days &mdash; February 2026</p>
     <p class="center small"><a href="https://github.com/willirath/2026-Claude-NEMO">github.com/willirath/2026-Claude-NEMO</a>
     &bull; <a href="https://github.com/willirath/2026-Claude-NEMO/blob/main/docs/conversation.md">conversation log</a></p>
   </section>
@@ -47,6 +47,8 @@
       <li>Dockerized build of a large Fortran codebase</li>
       <li>Idealized double-gyre configuration (mid-latitude Atlantic analog)</li>
       <li>Automated analysis pipeline with Jupyter notebooks</li>
+      <li>Shared analysis library with proper grid handling</li>
+      <li>HPC deployment via Singularity for decade-scale runs</li>
     </ul>
     <p style="margin-top:1em;">The kind of project that normally involves reading documentation,
     trial-and-error compilation, and a lot of plumbing &mdash;
@@ -69,7 +71,7 @@
     <p>Claude claimed XIOS (an external I/O server) was a hard dependency.
     The user knew better:</p>
     <blockquote>I think that's not accurate. Review IO again. There should be
-    a way to write _{T,U,V,W} files without XIOS.</blockquote>
+    a way to write <code>_{T,U,V,W}</code> files without XIOS.</blockquote>
     <p>Investigation proved the user right &mdash; a bundled library (IOIPSL) handles
     output natively. This eliminated an entire build stage and a major
     source of complexity.</p>
@@ -128,45 +130,38 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
 <section>
   <section>
     <h1>Analysis</h1>
-    <blockquote class="center">Are you sure about the wind stress and current directions?<br>
-    They are in delx, dely direction, I think.</blockquote>
-    <blockquote class="center">Look at outputs (esp plots) and tune them. There's a few obvious issues.</blockquote>
+    <blockquote class="center">Let's use Jupyter notebooks instead of .py files. Literate
+    programming is easier to investigate by humans.</blockquote>
     <blockquote class="center">Add analyses: surface heat flux, total heat content time series,
     total KE time series, mean salinity time series (should be constant),
     wind stress quiver.</blockquote>
   </section>
 
   <section>
-    <h3>Catching What the AI Missed</h3>
-    <p>Claude plotted vectors as if grid-aligned = geographic.
-    But the GYRE grid is rotated <strong>45&deg;</strong> &mdash; every vector was wrong.
-    Plausible-looking, physically incorrect plots.</p>
-    <div class="center">
-      <img src="./wind_stress.png" alt="Wind stress (corrected)" style="max-height: 500px;">
-    </div>
-    <p class="center small">After correction: westerlies in the north, trades in the south.</p>
-  </section>
-
-  <section>
     <h3>Steering the Analysis</h3>
-    <blockquote>Let's use Jupyter notebooks instead of .py files. Literate
-    programming is easier to investigate by humans.</blockquote>
     <blockquote>Put the plots on a regional map with cartopy. Use stereographic projection,
     add coastlines. Don't worry that the rect box doesn't fit the coastlines.
     We <em>want</em> to see its approx position on the globe and its shape in
     relation to the real Atlantic basin.</blockquote>
-    <p class="small">The user specified format, projection, and physics; Claude created
+    <p>The user specified format, projection, and physics; Claude created
     the notebooks, checked variable names, and wired up the Makefile.</p>
+    <div class="center" style="display: flex; justify-content: center; gap: 15px;">
+      <img src="./sst_mean.png" alt="Mean SST" style="max-height: 400px;">
+      <img src="./heat_flux.png" alt="Surface heat flux" style="max-height: 400px;">
+    </div>
   </section>
 
   <section>
-    <h3>Results</h3>
+    <h3>Plausible but Wrong</h3>
+    <blockquote>Are you sure about the wind stress and current directions?
+    They are in delx, dely direction, I think.</blockquote>
+    <p>Claude plotted vectors as if grid-aligned = geographic.
+    But the GYRE grid is rotated <strong>45&deg;</strong> &mdash; every vector was wrong.</p>
     <div class="center" style="display: flex; justify-content: center; gap: 15px;">
-      <img src="./sst_mean.png" alt="Mean SST" style="max-height: 500px;">
-      <img src="./heat_flux.png" alt="Surface heat flux" style="max-height: 500px;">
+      <img src="./wind_stress_wrong.png" alt="Wind stress (wrong)" style="max-height: 380px;">
+      <img src="./wind_stress.png" alt="Wind stress (corrected)" style="max-height: 380px;">
     </div>
-    <p class="center small">Volume-mean salinity confirmed constant at ~35.315 PSU &mdash;
-    the sanity check the user asked for.</p>
+    <p class="center small">The user caught it from domain knowledge. The AI would have shipped this.</p>
   </section>
 </section>
 
@@ -190,12 +185,149 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
     purely MPI. Switched to 4 ranks.
     <strong>2.6&times; speedup</strong> (0.10 &rarr; 0.039 s/step).</p>
   </section>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- CORRECTNESS & CODE QUALITY -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <section>
+    <h1>Correctness &amp; Code Quality</h1>
+    <blockquote class="center">Look at outputs (esp plots) and tune them.
+    There's a few obvious issues.</blockquote>
+  </section>
 
   <section>
-    <h3>Final Pipeline</h3>
-    <blockquote>Add savefig calls, subset the quiver, extend run, then <code>make all</code>.</blockquote>
-    <p>One prompt, four changes. Full pipeline ran end to end.
-    Feature branch merged to <code>main</code>.</p>
+    <h3>Physical Correctness</h3>
+    <blockquote>Ensure NEMO grid is respected for aggregations.</blockquote>
+    <p>Domain means used flat <code>.mean()</code> &mdash; no area weighting, no
+    land mask. On NEMO's rotated grid with varying cell sizes, this silently
+    biased every spatial aggregate.</p>
+    <p>The fix: <code>.weighted(cell_area * interior).mean()</code>, zonal means
+    weighted by <code>e1t</code>, proper boundary exclusion.</p>
+    <p class="small">Other catches by the user: Docker <code>--cpus</code> is a quota not a
+    core-pinning flag (800% CPU observed); boundary ring included in averages.</p>
+  </section>
+
+  <section>
+    <h3>Code Quality</h3>
+    <blockquote>Ensure proper xarray API is used rather than sending around np arrays.</blockquote>
+    <blockquote>Don't hide the output dir in the lib. Really bad pattern.</blockquote>
+    <p>Notebooks extracted <code>.values</code> immediately, discarding
+    xarray's coordinate-aware operations. Claude refactored to use
+    <code>.where()</code>, <code>.weighted()</code>, <code>.isel()</code>.</p>
+    <p>Duplicated boilerplate extracted into <code>analysis/gyre.py</code>
+    (9 functions). Setup cells shrank from ~30 to ~5 lines.</p>
+    <p class="small">The user required: mandatory parameters (no hidden defaults),
+    type hints, proper markdown documentation in every notebook.</p>
+  </section>
+
+  <section>
+    <h3>Calendar Fix</h3>
+    <blockquote>Where's a good place to fix the calendar? I don't want this
+    repeated in every notebook.</blockquote>
+    <p>IOIPSL writes <code>360d</code> but CF conventions require <code>360_day</code>.
+    Hardcoded in NEMO's <code>domain.F90</code> &mdash; can't fix without patching the submodule.</p>
+    <p>Solution: a one-liner in the Makefile post-processes the NetCDF attributes
+    after <code>rebuild_nemo</code>. Fixed once, all notebooks benefit.</p>
+  </section>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- LITERATURE & CONFIGURATION -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <section>
+    <h1>Literature Research</h1>
+    <blockquote class="center">There's a 2010 Levy paper defining the GYRE.
+    And there's a 2023(&plusmn;2y) paper by Bagaeva who set up a GYRE with FESOM.
+    Read these papers and summarize params of the 20&thinsp;km configs.</blockquote>
+  </section>
+
+  <section>
+    <h3>Navigating Paywalls</h3>
+    <p>Both papers were behind paywalls. Claude tried DOI redirects,
+    ResearchGate, preprint archives, user-agent spoofing &mdash; all blocked.</p>
+    <blockquote>Can't you parse PDF?</blockquote>
+    <p>The user provided a local Zotero path. Claude installed
+    <code>pdfminer-six</code> and extracted the text. Also pulled Levy's
+    parameters directly from the NEMO Fortran source
+    (<code>usrdef_nam.F90</code>, <code>usrdef_sbc.F90</code>).</p>
+  </section>
+
+  <section>
+    <h3>Configuration Comparison</h3>
+    <blockquote>What about runtimes, ignored spinup, diags used and plotted?</blockquote>
+    <table>
+      <tr><th></th><th>Levy 2010</th><th>Bagaeva 2024</th><th>GYRE_DOCKER</th></tr>
+      <tr><td><strong>Model</strong></td><td>NEMO</td><td>FESOM</td><td>NEMO</td></tr>
+      <tr><td><strong>Resolution</strong></td><td>1/5&deg;</td><td>~20 km</td><td>1/5&deg;</td></tr>
+      <tr><td><strong>Runtime</strong></td><td>100 yr (70 spinup)</td><td>59 yr</td><td>10 yr (so far)</td></tr>
+      <tr><td><strong>Diagnostics</strong></td><td>SSH, SST, &psi;</td><td>SSH, SST, KE</td><td>SSH, SST, KE, fluxes</td></tr>
+    </table>
+    <p class="small">Decade-scale runs are the entry point for meaningful
+    ocean dynamics &mdash; hence the HPC deployment.</p>
+  </section>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- HPC DEPLOYMENT -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <section>
+    <h1>HPC Deployment</h1>
+    <blockquote class="center">I'd like to run this big run on an HPC centre.
+    Plan this out with minimal interaction with me (I'm busy otherwise.)</blockquote>
+  </section>
+
+  <section>
+    <h3>The Pipeline</h3>
+    <blockquote>Give me list of commands (c/p able) that I need to run on nesh.
+    I just logged in.</blockquote>
+    <p>Local Mac (ARM) &rarr; NESH cluster (x86, SLURM, Singularity):</p>
+    <pre><code># Local: cross-build and push to GitHub Container Registry
+make push    # docker buildx --platform linux/amd64 --push
+
+# NESH: pull as Singularity image and run
+singularity pull nemo-gyre.sif docker://ghcr.io/...
+NEMO_ITEND=108000 sbatch hpc/job.sh    # 10-year run</code></pre>
+    <p class="small">First push failed: <code>gh auth token</code> lacked
+    <code>write:packages</code> scope. Build layers cached &mdash; second push took 11 seconds.</p>
+  </section>
+
+  <section>
+    <h3>Four Rounds of Remote Debugging</h3>
+    <blockquote>Do we need to bind the host MPI for single node execution?</blockquote>
+    <p>No &mdash; container MPI works fine for single-node. The user caught this
+    before it became a problem. Then: run on NESH, paste errors back,
+    Claude diagnoses without cluster access:</p>
+    <table>
+      <tr><th>#</th><th>Error</th><th>Root cause</th></tr>
+      <tr><td>1</td><td><code>/var/spool/slurmd/nemo-gyre.sif</code></td>
+        <td>SLURM copies scripts to spool &mdash; use <code>$SLURM_SUBMIT_DIR</code></td></tr>
+      <tr><td>2</td><td><code>/scratch: Read-only</code></td>
+        <td>Container MPI needs <code>OMPI_MCA_orte_tmpdir_base=/tmp</code></td></tr>
+      <tr><td>3</td><td><code>unable to execute /opt/nemo-run/nemo</code></td>
+        <td>Bind mount hides symlink &mdash; use absolute executable path</td></tr>
+      <tr><td>4</td><td><code>calendar '360d'</code></td>
+        <td>Same IOIPSL fix needed in job script</td></tr>
+    </table>
+    <p class="small">Plus: no host MPI needed for single-node (user caught this);
+    <code>$HOME</code> quota avoidance; gitignore trailing-slash vs symlink.</p>
+  </section>
+
+  <section>
+    <h3>10-Year Run</h3>
+    <blockquote>So go for 10 years. Make sure the output symlinking doesn't fail
+    if output symlink exists.</blockquote>
+    <p>After the fixes, the 1-year test run completed on NESH.
+    <code>make analyze</code> ran the notebooks against the HPC output.</p>
+    <p>Then: <code>NEMO_ITEND=108000 sbatch hpc/job.sh</code> &mdash;
+    a 10-year simulation, ~2.5 hours on a single NESH node.</p>
+    <blockquote>Let's use a repo-local singularity cache dir and just ignore it.</blockquote>
+    <p class="small">Practical decisions made in passing: cache placement,
+    gitignore updates, <code>output</code> symlink handling &mdash; each a one-liner
+    from the user, resolved immediately.</p>
   </section>
 </section>
 
@@ -207,13 +339,24 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
     <h1>Observations</h1>
     <blockquote class="center">I think that's not accurate.</blockquote>
     <blockquote class="center">Are you sure about the wind stress and current directions?</blockquote>
-    <blockquote class="center">You burn through (unnecessary?) context fast.</blockquote>
+    <blockquote class="center">Don't hide the output dir in the lib. Really bad pattern.</blockquote>
+  </section>
+
+  <section>
+    <h3>Efficient Communication</h3>
+    <blockquote>Add savefig calls, subset the quiver, extend run, then <code>make all</code>.</blockquote>
+    <p>One prompt, four changes. Full pipeline ran end to end.</p>
+    <blockquote>OK. Then let's go for a 1-year run. Adapt namelist,
+    run <code>make clean</code>, <code>make all</code>. No interventions allowed.</blockquote>
+    <p>Once a shared understanding was established, complex multi-step
+    instructions could be given in a single sentence. The plan-driven
+    workflow paid off &mdash; both sides knew the vocabulary.</p>
   </section>
 
   <section>
     <h3>Enforcing Conventions</h3>
     <blockquote>Let's figure out how we deal with the fact that we cannot mod
-    the nemo/ contents directly.</blockquote>
+    the <code>nemo/</code> contents directly.</blockquote>
     <p>Claude had edited inside the read-only <code>nemo/</code> submodule.
     The user flagged it; solution was an external config directory
     (<code>configs/GYRE_DOCKER/</code>) built via <code>makenemo -t</code>.</p>
@@ -227,22 +370,22 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
     <table>
       <tr><th></th><th>Human</th><th>AI</th></tr>
       <tr><td><strong>Strengths</strong></td>
-        <td>Domain knowledge, architectural judgment,<br>testing instincts, quality review</td>
-        <td>Source navigation, mechanical iteration,<br>parameter arithmetic, debugging cascades</td></tr>
+        <td>Domain knowledge, architectural judgment,<br>API design instincts, quality review</td>
+        <td>Source navigation, mechanical iteration,<br>cross-platform plumbing, debugging cascades</td></tr>
       <tr><td><strong>Examples</strong></td>
         <td>XIOS is optional; vectors need rotation;<br>
-          "short run first"; submodule hygiene;<br>
-          <em>"Drop the anchors again. They are not rendering<br>
-          consistently between Jupyter Lab, GitLab, and VS Code."</em></td>
+          area weighting required; no hidden defaults;<br>
+          host MPI unnecessary for single-node;<br>
+          Docker CPU quota &ne; core pinning</td>
         <td>Finding IOIPSL in Fortran source;<br>
-          editing 5 notebooks + Makefile + README;<br>
-          deriving CFL-scaled timesteps;<br>
-          compiling rebuild_nemo from source</td></tr>
+          refactoring 5 notebooks + shared library;<br>
+          cross-building amd64 image via QEMU;<br>
+          diagnosing 4 SLURM failures from error logs</td></tr>
     </table>
     <p style="margin-top:0.8em;">Not a replacement for expertise, but a <strong>multiplier</strong> for it.</p>
-    <p class="small">Caveats: context limits hit twice; the AI confidently stated
-    incorrect facts and produced plausible but wrong output; repo conventions
-    needed explicit enforcement.</p>
+    <p class="small">Caveats: context limits hit repeatedly; the AI confidently stated
+    incorrect facts and produced plausible but wrong output; API design and
+    repo conventions needed explicit enforcement.</p>
   </section>
 </section>
 
