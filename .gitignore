@@ -2,8 +2,8 @@
 .pixi/*
 !.pixi/config.toml
 
-# simulation output (regenerable via make run)
-output/*.nc
+# simulation output (regenerable via make run, symlink on HPC)
+output/
 
 # Jupyter checkpoints
 .ipynb_checkpoints/
