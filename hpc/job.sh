@@ -53,6 +53,13 @@ singularity exec --bind "$RUNDIR:/opt/nemo-run" "$SIF" bash -c "
   fi
 "
 
+# Fix IOIPSL '360d' → CF-compliant '360_day'
+pixi run -C "$REPO_DIR" python -c "
+from netCDF4 import Dataset; from glob import glob
+for f in glob('$RUNDIR/*_grid_*.nc'):
+    d = Dataset(f, 'r+'); d['time_counter'].setncattr('calendar', '360_day'); d.close()
+"
+
 # Symlink output/ to this run so analysis notebooks find the data
 ln -sfn "$RUNDIR" "$REPO_DIR/output"
 
