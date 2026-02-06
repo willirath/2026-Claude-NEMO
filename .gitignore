@@ -3,7 +3,7 @@
 !.pixi/config.toml
 
 # simulation output (regenerable via make run, symlink on HPC)
-output/
+output
 
 # Jupyter checkpoints
 .ipynb_checkpoints/
