@@ -53,5 +53,8 @@ singularity exec --bind "$RUNDIR:/opt/nemo-run" "$SIF" bash -c "
   fi
 "
 
-echo "Output in $RUNDIR"
+# Symlink output/ to this run so analysis notebooks find the data
+ln -sfn "$RUNDIR" "$REPO_DIR/output"
+
+echo "Output in $RUNDIR (symlinked to $REPO_DIR/output)"
 ls -lh "$RUNDIR"/*.nc
