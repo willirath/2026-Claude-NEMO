@@ -11,8 +11,9 @@ output/*.nc
 # Python bytecode
 __pycache__/
 
-# Singularity images
+# Singularity images and cache
 *.sif
+.singularity_cache/
 
 # HPC run directories
 runs/

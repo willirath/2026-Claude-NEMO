@@ -12,11 +12,11 @@
 module load gcc12-env/12.3.0
 module load singularity/3.11.5
 
-# Keep singularity cache off $HOME (quota'd)
-export SINGULARITY_CACHEDIR=${SINGULARITY_CACHEDIR:-$WORK/.singularity_cache}
-
 # Resolve repo root relative to this script
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Keep singularity cache off $HOME (quota'd)
+export SINGULARITY_CACHEDIR=${SINGULARITY_CACHEDIR:-$REPO_DIR/.singularity_cache}
 
 SIF=${SIF:-$REPO_DIR/nemo-gyre.sif}
 RUNDIR=${RUNDIR:-$REPO_DIR/runs/run_$$}

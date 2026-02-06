@@ -16,11 +16,11 @@ Clone the repo (or rsync it) to `$WORK`, then pull the SIF into the repo root:
 
 ```bash
 cd /path/to/repo
-export SINGULARITY_CACHEDIR=$WORK/.singularity_cache
+export SINGULARITY_CACHEDIR=$PWD/.singularity_cache
 singularity pull nemo-gyre.sif docker://ghcr.io/willirath/2026-claude-nemo:latest
 ```
 
-The `.sif` file is gitignored. Keep it in the repo root — `$HOME` is quota'd.
+The `.sif` file and `.singularity_cache/` are gitignored. Keep them in the repo — `$HOME` is quota'd.
 
 ## Submitting jobs
 
