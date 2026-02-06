@@ -10,7 +10,7 @@ build:
 
 run:
 	mkdir -p $(OUTPUT_DIR)
-	docker run --rm --hostname nemo --cpus 4 -v $(CURDIR)/$(OUTPUT_DIR):/output $(IMAGE) \
+	docker run --rm --hostname nemo --cpus 4 --cpuset-cpus 0-3 -v $(CURDIR)/$(OUTPUT_DIR):/output $(IMAGE) \
 		bash -c '\
 		mpirun --allow-run-as-root -np 4 ./nemo && \
 		for f in *_grid_T_0000.nc *_grid_U_0000.nc *_grid_V_0000.nc *_grid_W_0000.nc; do \

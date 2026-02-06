@@ -18,9 +18,9 @@
 !-----------------------------------------------------------------------
    cn_exp      =  "GYRE"   !  experience name
    nn_it000    =       1   !  first time step
-   nn_itend    =    5400   !  last  time step
+   nn_itend    =   10800   !  last  time step (1 year, 360-day calendar)
    nn_leapy    =      30   !  Leap year calendar (1) or not (0)
-   nn_stock    =    5400   !  frequency of creation of a restart file (modulo referenced to 1)
+   nn_stock    =   10800   !  frequency of creation of a restart file (modulo referenced to 1)
    nn_write    =     300   !  frequency of write in the output file   (modulo referenced to nn_it000)
    nn_istate   =       0   !  output the initial state (1) or not (0)
 /

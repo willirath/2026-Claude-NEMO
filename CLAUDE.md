@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-Dockerized NEMO ocean model running the GYRE configuration — an idealized wind-driven double-gyre basin on a beta-plane. The pipeline builds NEMO in Docker, runs a 6-month simulation at 1/5° resolution, and analyzes the output with Python.
+Dockerized NEMO ocean model running the GYRE configuration — an idealized wind-driven double-gyre basin on a beta-plane. The pipeline builds NEMO in Docker, runs the simulation, and analyzes the output with Python.
 
 ## Quick Reference
 
 ```
 make all        # Full pipeline: build → run → analyze
 make build      # Build Docker image (compiles NEMO with gfortran/OpenMPI)
-make run        # Run 6-month simulation (4 MPI ranks), output NetCDF to output/
+make run        # Run simulation (4 MPI ranks), output NetCDF to output/
 make analyze    # Execute analysis notebooks (headless)
 make clean      # Remove output/
 ```
@@ -34,20 +34,19 @@ make clean      # Remove output/
 
 - **Config**: GYRE (physics-only, no PISCES/biogeochemistry)
 - **CPP keys**: `key_linssh key_vco_1d` (linear free surface, 1D vertical coord)
-- **Grid**: 160×110 horizontal, 31 vertical levels, 1/5° resolution
-- **Timestep**: 48 min (2880s), total 5400 steps = 180 days (6 months, 360-day calendar)
-- **Output**: 10-day averaged NetCDF via IOIPSL (no XIOS), `nn_write=300`
+- **Runtime parameters**: See `configs/GYRE_DOCKER/EXPREF/namelist_cfg` for grid, timestep, run length, and output frequency
+- **Output**: Periodic-averaged NetCDF via IOIPSL (no XIOS)
 - **Forcing**: Analytical (user-defined, no input files needed)
 - **MPI**: 4 ranks with domain decomposition, recombined via `rebuild_nemo`
 
 ## Output Files
 
-All in `output/`, prefixed `GYRE_10d_00010101_00010630_`:
+All in `output/`, prefixed `GYRE_10d_<startdate>_<enddate>_`:
 - `grid_T.nc` — Temperature, salinity, SSH (`sossheig`), SST, SSS
 - `grid_U.nc` — U-velocity
 - `grid_V.nc` — V-velocity
 - `grid_W.nc` — W-velocity
-- `GYRE_00005400_restart_000{0..3}.nc` — Per-rank restart files
+- `GYRE_<step>_restart_000{0..3}.nc` — Per-rank restart files
 - `mesh_mask.nc` — Grid geometry and land/sea masks
 
 ## Key Decisions

@@ -27,16 +27,16 @@ GYRE_DOCKER/
 
 ## Key Namelist Parameters
 
-See `EXPREF/namelist_cfg` for full details. Highlights:
+See `EXPREF/namelist_cfg` for full details. Key parameters:
 
-| Parameter | Value | Meaning |
-|-----------|-------|---------|
-| `nn_GYRE` | 5 | 1/5° resolution (grid: 152×102) |
-| `jpkglo` | 31 | Vertical levels |
-| `rn_Dt` | 2880 | Timestep: 48 minutes |
-| `nn_itend` | 5400 | Run length: 180 days (6 months) |
-| `nn_write` | 300 | Output every 10 days |
-| `ln_usr` | .true. | Analytical forcing (no input files) |
+| Parameter | Meaning |
+|-----------|---------|
+| `nn_GYRE` | Horizontal resolution (1/N degrees) |
+| `jpkglo` | Number of vertical levels |
+| `rn_Dt` | Timestep (seconds) |
+| `nn_itend` | Total number of timesteps |
+| `nn_write` | Output frequency (timesteps per output record) |
+| `ln_usr` | Analytical forcing (no input files) |
 
 ## MY_SRC
 
