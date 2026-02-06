@@ -2,7 +2,7 @@
 authors = ["Willi Rath <wrath@geomar.de>"]
 channels = ["conda-forge"]
 name = "2026-02-04_nemo_gyre_claude"
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
 
 [tasks]
