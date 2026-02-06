@@ -12,8 +12,8 @@
 module load gcc12-env/12.3.0
 module load singularity/3.11.5
 
-# Resolve repo root relative to this script
-REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# SLURM copies the script to a spool dir, so use the submit directory
+REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 
 # Keep singularity cache off $HOME (quota'd)
 export SINGULARITY_CACHEDIR=${SINGULARITY_CACHEDIR:-$REPO_DIR/.singularity_cache}
