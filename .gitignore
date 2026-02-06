@@ -15,5 +15,7 @@ __pycache__/
 *.sif
 .singularity_cache/
 
-# HPC run directories
+# HPC run directories and job logs
 runs/
+nemo-gyre_*.out
+nemo-gyre_*.err
