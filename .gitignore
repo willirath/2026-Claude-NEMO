@@ -7,3 +7,12 @@ output/*.nc
 
 # Jupyter checkpoints
 .ipynb_checkpoints/
+
+# Python bytecode
+__pycache__/
+
+# Singularity images
+*.sif
+
+# HPC run directories
+runs/

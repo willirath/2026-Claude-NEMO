@@ -1,7 +1,8 @@
 IMAGE := nemo-gyre
+GHCR_IMAGE := ghcr.io/willirath/2026-claude-nemo
 OUTPUT_DIR := output
 
-.PHONY: all build run analyze slides clean
+.PHONY: all build run analyze slides clean push
 
 all: build run analyze
 
@@ -28,6 +29,12 @@ analyze:
 slides:
 	@echo "Serving slides at http://localhost:8000/slides.html"
 	cd docs && pixi run python -m http.server 8000
+
+push:
+	docker buildx build --platform linux/amd64 \
+		-t $(GHCR_IMAGE):latest \
+		-t $(GHCR_IMAGE):$(shell git rev-parse --short HEAD) \
+		--push .
 
 clean:
 	rm -rf $(OUTPUT_DIR)
