@@ -23,8 +23,8 @@ RUNDIR=${RUNDIR:-$REPO_DIR/runs/run_$$}
 mkdir -p "$RUNDIR"
 
 # Copy namelists out of container for editing, then bind-mount back
-singularity exec "$SIF" cp /opt/nemo-run/namelist_cfg "$RUNDIR/namelist_cfg"
-singularity exec "$SIF" cp /opt/nemo-run/namelist_ref "$RUNDIR/namelist_ref"
+singularity exec --bind "$RUNDIR:$RUNDIR" "$SIF" cp /opt/nemo-run/namelist_cfg "$RUNDIR/namelist_cfg"
+singularity exec --bind "$RUNDIR:$RUNDIR" "$SIF" cp /opt/nemo-run/namelist_ref "$RUNDIR/namelist_ref"
 
 # Override nn_itend if NEMO_ITEND is set (default: keep container value)
 if [ -n "$NEMO_ITEND" ]; then
@@ -34,6 +34,7 @@ fi
 
 # Run NEMO with container MPI (single-node, shared-memory only)
 NP=$SLURM_NTASKS
+export OMPI_MCA_orte_tmpdir_base=/tmp
 singularity exec --bind "$RUNDIR:/opt/nemo-run" "$SIF" \
   mpirun -np "$NP" /opt/nemo-run/nemo
 
