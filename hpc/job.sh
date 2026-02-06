@@ -35,8 +35,8 @@ fi
 # Run NEMO with container MPI (single-node, shared-memory only)
 NP=$SLURM_NTASKS
 export OMPI_MCA_orte_tmpdir_base=/tmp
-singularity exec --bind "$RUNDIR:/opt/nemo-run" "$SIF" \
-  mpirun -np "$NP" /opt/nemo-run/nemo
+singularity exec --bind "$RUNDIR:/opt/nemo-run" --pwd /opt/nemo-run "$SIF" \
+  mpirun -np "$NP" /opt/nemo-configs/GYRE_DOCKER/EXP00/nemo
 
 # Rebuild multi-rank output (serial, inside container)
 singularity exec --bind "$RUNDIR:/opt/nemo-run" "$SIF" bash -c "
