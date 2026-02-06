@@ -1,9 +1,9 @@
 # Building a NEMO GYRE Simulation with Claude Code
 
 A complete record of building a Dockerized NEMO ocean model pipeline —
-from `pixi init` to polished analysis notebooks — in conversation with
-Claude Code (Opus 4.5). The entire project was developed in a single
-sitting across three Claude Code sessions.
+from `pixi init` to polished analysis notebooks to HPC deployment — in
+conversation with Claude Code (Opus 4.5/4.6). The project was developed
+across multiple sessions spanning three days.
 
 ---
 
@@ -365,7 +365,283 @@ Committed on `feature/fifth-degree-resolution`, then fast-forwarded
 
 ---
 
+## Part V: Configuration Refactoring
+
+### 21. Making configuration discoverable
+
+> **User:** Review if we can improve the repo from the pov of
+> configuration / simulation documentation — is it easy to find all the
+> details you may want to know about the simulation?
+
+Claude reviewed the repo and identified several discoverability gaps:
+compile-time CPP keys were buried in the Dockerfile, namelist files had
+cryptic Fortran names without comments, and key decisions (like dropping
+PISCES) were hidden in Docker build steps.
+
+> **User:** Where do we, e.g., decide that the bgc component is not
+> included?
+
+Claude traced this to a single line in the Dockerfile that overwrites the
+CPP keys file — a decision effectively hidden from anyone browsing the
+repository.
+
+### 22. Idiomatic NEMO configuration structure
+
+> **User:** Move configs to a more visible central place. There may be
+> NEMO idiomatic ways of handling own / adapted configurations. Explore
+> those and then let's discuss.
+
+Claude researched NEMO conventions and presented three options:
+- **Option A**: Create config inside the `nemo/` submodule directory
+- **Option B**: External `configs/` directory using `makenemo -t` flag
+- **Option C**: Keep the `docker/` approach with missing files added
+
+Option A was tested but fails because files inside a git submodule cannot
+be tracked by the parent repo. The user chose Option B.
+
+Claude created `configs/GYRE_DOCKER/` with CPP keys, namelist, `MY_SRC/`
+placeholder for custom Fortran, and a README. This follows the idiomatic
+NEMO pattern where external configs reference the source via `makenemo -t`.
+
+### 23. Docker image layout cleanup
+
+The user caught several issues with the Docker filesystem layout:
+
+> **User:** Is it safe to just put stuff into / of the docker image?
+
+Claude had placed configs at `/configs` in the container root. The user
+prompted a move to `/opt/nemo-configs`. This cascaded into reorganizing
+the entire Docker layout:
+
+| Path | Contents |
+|---|---|
+| `/opt/nemo-code/` | NEMO source and compiled binaries |
+| `/opt/nemo-configs/` | Project configuration (GYRE_DOCKER) |
+| `/opt/nemo-run/` | Run directory with symlinks |
+
+The symlinks in `/opt/nemo-run/` point to the executable, namelist_cfg,
+and namelist_ref in their actual locations — important foreshadowing for
+the Singularity bind-mount issues encountered later.
+
+### 24. Performance experiments
+
+After verifying the refactored build, the user explored CPU behavior:
+
+> **User:** Sure? I saw 800% CPU here at runtime. Check thoroughly.
+
+Claude discovered that Docker's `--cpus 4` is a CPU **quota**, not a
+core-pinning flag — the container's 4 MPI ranks were spreading across
+all available cores. Added `--cpuset-cpus 0-3` to pin the container to
+exactly 4 cores.
+
+Results with 4 ranks:
+| Configuration | Time | Change |
+|---|---|---|
+| No pinning | 205.7s | — |
+| Pinned (`--cpuset-cpus 0-3`) | 203.8s | −1% |
+| 8 ranks, no pinning | 212.0s | +3% |
+
+The 8-rank run was slightly slower — the domain is too small for that
+level of decomposition and halo exchange overhead dominates.
+
+### 25. Native NetCDF output investigation
+
+> **User:** Please, thoroughly investigate (incl. web search) if there is
+> no way of writing output natively w/o IOIPSL and w/o XIOS? There could
+> just be native NetCDF output?
+
+Claude investigated and concluded: NEMO does not support native NetCDF
+for regular diagnostic output. The only options are XIOS or IOIPSL.
+Native NetCDF is limited to restart files and state dumps.
+
+---
+
+## Part VI: Analysis Quality
+
+### 26. Notebook audit
+
+> **User:** Let's review the analysis code:
+> - ensure NEMO grid is respected for aggregations
+> - ensure proper xarray API is used rather than sending around np arrays
+> - ensure human readable contents (comments) are exposed w/ markdown
+>   cells and in general follow good notebook practices rather than just
+>   slapping whole python scripts into 1 or 2 cells.
+> Tell me what you find before acting.
+
+Claude read all notebooks and reported three categories of issues:
+
+1. **Grid not respected**: Domain means used flat `.mean()` with no area
+   weighting and no land mask. Zonal means in SST used `np.nanmean` with
+   no cell-width weighting.
+
+2. **xarray API underused**: All notebooks immediately extracted `.values`
+   and operated in numpy-land, discarding coordinate-aware operations.
+   Masking used `np.where()` instead of `.where()`.
+
+3. **Notebook practices**: Monolithic cells, minimal markdown
+   documentation.
+
+> **User:** Listen for remarks.
+
+Claude jumped ahead and ran diagnostic commands instead of waiting for
+the user to finish.
+
+> **User:** Didn't listen?
+
+After apologizing and resetting, the user raised time weighting and
+calendar decoding. Claude found that time weights aren't needed (uniform
+10-day intervals), but the IOIPSL calendar attribute `360d` breaks
+xarray's time decoding because the CF-compliant name is `360_day`.
+
+### 27. Calendar fix
+
+> **User:** Where's a good place to fix the calendar? I don't want this
+> repeated in every notebook.
+
+Claude proposed fixing the attribute in the NetCDF files as a
+post-processing step in the Makefile. The `360d` string is hardcoded in
+NEMO's `domain.F90` (called via IOIPSL when `nn_leapy=30`), so it can't
+be changed without patching the submodule.
+
+A one-liner in the Makefile after `rebuild_nemo` patches the `calendar`
+attribute from `360d` to `360_day` in all grid output files. Claude also
+wrote `analysis/calendar_note.md` referencing CF Conventions Section
+4.4.1.
+
+### 28. Notebook rewrite
+
+Claude rewrote all notebooks:
+- **Area-weighted means**: `ssh.weighted(cell_area * interior).mean()`
+- **xarray API**: `.where()` for masking, `.weighted().mean()` for
+  aggregations, `decode_times=True` (now works with the calendar fix)
+- **Structure**: Split monolithic cells, added markdown explanations
+
+---
+
+## Part VII: Shared Library & Production Run
+
+### 29. Extracting `analysis/gyre.py`
+
+> **User:** Depth-levels of u, v, t should agree in the Gyre. W doesn't
+> (note the vertically staggered grid). There's no x,y dimensional vars
+> in NetCDF. This messes w/ xr alignment if we subset. LMK what the lib
+> should contain. Then we may discuss details.
+
+Claude designed a shared module with 9 public functions: `load_output`,
+`load_mesh`, `interior_mask`, `cell_area`, `cell_volume`, `grid_angle`,
+`rotate_to_geo`, `gyre_map`. All five notebooks were refactored to use
+it, shrinking each setup cell from ~20–40 lines to ~5–10 lines.
+
+A bug surfaced during execution: `grid_angle` uses `diff().pad()`, and
+`pad` duplicated the last x coordinate value, breaking xarray alignment.
+Fixed by reassigning clean integer coords.
+
+### 30. Library design corrections
+
+> **User:** Don't hide the output dir in the lib. Really bad pattern.
+
+> **User:** Use type hints in lib.
+
+Claude removed the `OUTPUT_DIR` default, made `output_dir` a mandatory
+parameter, and added type hints throughout. All notebooks now define and
+pass `OUTPUT_DIR` explicitly.
+
+### 31. One-year production run
+
+> **User:** Let's go for a 1-year run. Adapt namelist, run `make clean`,
+> `make all`. No interventions allowed.
+
+Claude set `nn_itend=10800` (360 days × 30 steps/day), ran the full
+pipeline, and it completed cleanly — 36 output records, ~408 seconds
+wall clock (~7 minutes).
+
+### 32. Configuration comparison
+
+> **User:** There's a 2010 Levy paper defining the GYRE. And there's a
+> 2023(±2y) paper by Ekaterina Bagaeva who set up a GYRE with FESOM.
+> Read these papers and summarize params of the 20 km resolution configs.
+
+Both papers were behind paywalls. Claude tried multiple access methods
+(DOI redirects, ResearchGate, preprint archives, user-agent spoofing) —
+all blocked by bot protection. The user eventually provided the Zotero
+storage path, and Claude extracted the text with `pdfminer-six`.
+
+The resulting document compared domain size, resolution, forcing,
+viscosity, EOS, vertical grid, runtime, and diagnostics across Levy
+2010, Bagaeva 2024, and GYRE_DOCKER. Key finding: Levy runs 100 years
+(discarding the first 70 as spinup), Bagaeva runs 59 years — both far
+longer than the current 1-year run.
+
+> **User:** How long was the 1y run? So what would a 10y run take?
+
+~7 minutes per model year → ~70 minutes for 10 years, ~6 hours for a
+50-year spinup.
+
+---
+
+## Part VIII: HPC Deployment
+
+### 33. Planning NESH deployment
+
+> **User:** I'd like to run this big run on an HPC centre. Docs are here:
+> https://www.hiperf.rz.uni-kiel.de/nesh/ So we need to turn our Docker
+> env container into a Singularity container. Plan this out and test
+> building a SIF file and a job script with minimal interaction with me
+> (I'm busy otherwise.)
+
+Claude investigated the options. The Docker image was ARM64 (Apple
+Silicon) but NESH needs x86_64. Rather than converting locally, the
+approach was to cross-build for amd64 via `docker buildx` with QEMU
+emulation and push to GitHub Container Registry (GHCR), then pull as a
+SIF on NESH.
+
+> **User:** Ah, no if the GH registry works, go for it :D
+
+### 34. Implementation and debugging
+
+Three files were created:
+- **Makefile `push` target**: Cross-builds for `linux/amd64` and pushes
+  to `ghcr.io/willirath/2026-claude-nemo`, tagged with both `latest` and
+  the git short SHA.
+- **`hpc/job.sh`**: SLURM job script — copies namelists from the
+  container, optionally overrides `nn_itend` via `NEMO_ITEND` env var,
+  runs NEMO, rebuilds multi-rank output, symlinks `output/` for notebook
+  compatibility.
+- **`hpc/README.md`**: Usage instructions for NESH.
+
+The first push failed: `gh auth token` lacked the `write:packages` scope.
+Fixed with `gh auth refresh -h github.com -s write:packages`. The
+rebuild push took ~11 seconds (cached layers).
+
+### 35. SLURM debugging on NESH
+
+Deploying to NESH required four fix iterations:
+
+| Attempt | Error | Root cause | Fix |
+|---|---|---|---|
+| 1 | `/var/spool/slurmd/nemo-gyre.sif: no such file` | SLURM copies scripts to spool dir, `dirname $0` resolves wrong | Use `$SLURM_SUBMIT_DIR` |
+| 2 | `cp: cannot create regular file` + `/scratch: Read-only file system` | `singularity exec ... cp` runs inside container where host paths aren't mounted; container MPI tried `/scratch` for temp files | Bind `$RUNDIR` for cp steps; set `OMPI_MCA_orte_tmpdir_base=/tmp` |
+| 3 | `unable to access or execute: /opt/nemo-run/nemo` | Bind-mounting `$RUNDIR` onto `/opt/nemo-run` hides the `nemo` symlink | Use absolute path to executable: `/opt/nemo-configs/GYRE_DOCKER/EXP00/nemo` |
+| 4 | `calendar '360d'` decode error in notebooks | Same IOIPSL calendar issue — the HPC job lacked the fix-up step | Add `pixi run python` calendar patch to `job.sh` |
+
+Additional fixes: host MPI not needed for single-node runs (container
+MPI handles shared-memory communication), Singularity cache directed to
+repo-local `.singularity_cache/` to avoid `$HOME` quota,
+gitignore trailing-slash issue (`output/` doesn't match symlinks, `output`
+does).
+
+### 36. First successful HPC run
+
+After the fixes, the 1-year GYRE run completed on NESH. `make analyze`
+ran the notebooks against the HPC output via the `output` symlink.
+
+A 10-year run (`NEMO_ITEND=108000`) was submitted.
+
+---
+
 ## Observations
+
+(continued from Part IV)
 
 ### What the human caught that the AI didn't
 
@@ -396,6 +672,36 @@ Committed on `feature/fifth-degree-resolution`, then fast-forwarded
   stride produced an unreadable arrow field. The user caught this and
   suggested scaling the skip.
 
+- **Area weighting.** Claude's initial notebooks computed domain means
+  with flat `.mean()` — no area weighting, no land mask. On NEMO's
+  rotated grid with varying cell sizes, this silently biases results.
+  The user required proper `weighted()` aggregation.
+
+- **Docker CPU quota vs pinning.** When the user observed 800% CPU,
+  Claude initially dismissed it ("already using 4 ranks"). The user
+  insisted on a thorough check, and Claude discovered `--cpus` is a
+  quota, not a core-pinning flag.
+
+- **Hidden configuration.** The user noticed that key decisions (dropping
+  PISCES, CPP keys) were buried in the Dockerfile. This prompted the
+  refactoring to an idiomatic `configs/GYRE_DOCKER/` structure.
+
+- **Docker filesystem layout.** Claude put configs at `/configs` in the
+  container root. The user asked "is it safe to just put stuff into /?"
+  and cascaded into a clean `/opt/` layout.
+
+- **Library API design.** Claude embedded a default `OUTPUT_DIR` in the
+  shared library. The user immediately flagged it: "Don't hide the output
+  dir in the lib. Really bad pattern."
+
+- **Host MPI not needed.** The plan called for `srun --mpi=pmix` with
+  host MPI. The user asked "do we need to bind the host MPI for
+  single-node execution?" — the answer was no, simplifying the job
+  script significantly.
+
+- **gitignore trailing slash.** `output/` only matches directories, not
+  symlinks. The user caught this after the HPC job created a symlink.
+
 ### What the AI handled well
 
 - **Mechanical iteration.** Editing 5 notebooks, re-executing, exporting
@@ -407,8 +713,10 @@ Committed on `feature/fifth-degree-resolution`, then fast-forwarded
   `mesh_mask.nc` grid metrics for volume integrals.
 
 - **Debugging cascades.** Docker build failures, Fortran runtime errors,
-  missing PISCES files — each required reading logs, tracing the issue,
-  and applying a targeted fix.
+  missing PISCES files, SLURM spool paths, Singularity bind-mount
+  overlays — each required reading logs, tracing the issue, and applying
+  a targeted fix. The NESH deployment required four fix iterations, each
+  diagnosed from the error output.
 
 - **Resolution scaling.** Given `nn_GYRE=5`, Claude correctly derived
   all dependent parameters (timestep, diffusion lengths, output
@@ -416,31 +724,51 @@ Committed on `feature/fifth-degree-resolution`, then fast-forwarded
 
 - **Incremental testing.** Smoke-testing with 10 steps before committing
   to long runs caught the rebuild_nemo issue (zero time records) early.
-  Timing a 1-month run to estimate full-run cost avoided a blind 36-minute
-  wait.
+  Timing a 1-month run to estimate full-run cost avoided a blind
+  36-minute wait.
 
 - **Build system plumbing.** Compiling `rebuild_nemo` from Fortran
   source, wiring it into the Makefile run target with proper shell
   escaping, and handling the filename suffix change across all notebooks
   — unglamorous but necessary infrastructure work.
 
+- **Cross-platform deployment.** Cross-building the Docker image for
+  amd64 via QEMU, pushing to GHCR, creating a SLURM job script with
+  proper Singularity bind mounts, and handling the chain of
+  container-vs-host filesystem issues — all without access to the target
+  cluster.
+
+- **Literature extraction.** When paywalled papers couldn't be fetched
+  via web tools, Claude extracted text from a locally stored PDF using
+  `pdfminer-six` and synthesized a three-way configuration comparison.
+
 ### The interaction pattern
 
-The session followed a consistent rhythm: the user gave high-level
-direction ("add cartopy maps," "fix vector directions"), Claude did the
-implementation work, and the user reviewed results and course-corrected.
-Domain expertise (oceanography, NEMO specifics) came from the user;
-implementation labor (code editing, execution, file management) came from
-the AI.
+The sessions followed a consistent rhythm: the user gave high-level
+direction ("add cartopy maps," "fix vector directions," "run this on
+NESH"), Claude did the implementation work, and the user reviewed results
+and course-corrected. Domain expertise (oceanography, NEMO specifics,
+HPC operations) came from the user; implementation labor (code editing,
+execution, file management) came from the AI.
 
 The resolution upgrade session showed a tighter feedback loop: the user
 steered aggressively on testing strategy ("short run first," "check
 timing," "abort — try MPI"), while Claude handled the parameter
-arithmetic and build/run mechanics. The user's instinct to measure
-before committing (timing a 1-month run) saved significant wall-clock
-time.
+arithmetic and build/run mechanics.
 
-Context limits were hit twice, requiring session continuations. The
-earlier build session consumed significant context on NEMO source
-exploration — the user noted: "You burn through (unnecessary?) context
-fast."
+The HPC deployment session introduced a new pattern: **remote
+debugging**. The user ran commands on NESH and pasted error output back.
+Claude diagnosed each failure from the error messages alone and pushed
+fixes that the user pulled and tested. Four iterations took the job
+script from "nothing works" to a successful run.
+
+A recurring theme was **simplicity over cleverness**. The user repeatedly
+steered toward simpler solutions: `make clean` instead of a new test
+target, `open_dataset().load()` instead of `open_mfdataset` with dask
+workarounds, container MPI instead of host MPI, mandatory parameters
+instead of hidden defaults.
+
+Context limits were hit multiple times across the project, requiring
+session continuations. The earlier build session consumed significant
+context on NEMO source exploration — the user noted: "You burn through
+(unnecessary?) context fast."
