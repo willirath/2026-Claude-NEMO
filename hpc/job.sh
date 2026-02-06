@@ -61,7 +61,8 @@ for f in glob('$RUNDIR/*_grid_*.nc'):
 "
 
 # Symlink output/ to this run so analysis notebooks find the data
-ln -sfn "$RUNDIR" "$REPO_DIR/output"
+rm -f "$REPO_DIR/output"
+ln -s "$RUNDIR" "$REPO_DIR/output"
 
 echo "Output in $RUNDIR (symlinked to $REPO_DIR/output)"
 ls -lh "$RUNDIR"/*.nc
