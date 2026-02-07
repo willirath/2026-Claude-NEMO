@@ -12,12 +12,17 @@ make push
 
 ## Setup on NESH
 
-Clone the repo (or rsync it) to `$WORK`, then pull the SIF into the repo root:
+Clone the repo (or rsync it) to `$WORK`, then pull the SIF and set up the
+Python analysis environment:
 
 ```bash
 cd /path/to/repo
 export SINGULARITY_CACHEDIR=$PWD/.singularity_cache
 singularity pull nemo-gyre.sif docker://ghcr.io/willirath/2026-claude-nemo:latest
+
+# Install pixi (once) and create the analysis environment
+curl -fsSL https://pixi.sh/install.sh | bash
+pixi install
 ```
 
 The `.sif` file and `.singularity_cache/` are gitignored. Keep them in the repo — `$HOME` is quota'd.

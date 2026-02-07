@@ -11,6 +11,11 @@
 
 module load gcc12-env/12.3.0
 module load singularity/3.11.5
+module load nco
+
+# Compute nodes need an explicit proxy for internet access
+export http_proxy=http://10.0.7.235:3128
+export https_proxy=http://10.0.7.235:3128
 
 # SLURM copies the script to a spool dir, so use the submit directory
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -54,11 +59,10 @@ singularity exec --bind "$RUNDIR:/opt/nemo-run" "$SIF" bash -c "
 "
 
 # Fix IOIPSL '360d' → CF-compliant '360_day'
-pixi run -C "$REPO_DIR" python -c "
-from netCDF4 import Dataset; from glob import glob
-for f in glob('$RUNDIR/*_grid_*.nc'):
-    d = Dataset(f, 'r+'); d['time_counter'].setncattr('calendar', '360_day'); d.close()
-"
+for f in "$RUNDIR"/*_grid_*.nc; do
+  [ -f "$f" ] || continue
+  ncatted -h -a calendar,time_counter,m,c,"360_day" "$f"
+done
 
 # Symlink output/ to this run so analysis notebooks find the data
 rm -f "$REPO_DIR/output"
@@ -66,3 +70,6 @@ ln -s "$RUNDIR" "$REPO_DIR/output"
 
 echo "Output in $RUNDIR (symlinked to $REPO_DIR/output)"
 ls -lh "$RUNDIR"/*.nc
+
+# Run analysis notebooks (serial, reusing the allocation)
+make -C "$REPO_DIR" analyze
