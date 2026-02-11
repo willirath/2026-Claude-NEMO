@@ -117,10 +117,30 @@ def grid_angle(mesh: xr.Dataset) -> xr.DataArray:
                                y=range(angle.sizes["y"]))
 
 
+def interp_uv_to_t(
+    u: xr.DataArray, v: xr.DataArray,
+) -> tuple[xr.DataArray, xr.DataArray]:
+    """Interpolate C-grid U/V fields to T-points (simple 2-point average).
+
+    On the Arakawa C-grid, U(i,j) sits at (i+½, j) and V(i,j) at (i, j+½).
+    Averaging adjacent values in i (for U) and j (for V) brings both to T(i,j).
+    The result has NaN at the domain edges where the shift introduces missing
+    neighbours; callers should trim or mask accordingly.
+    """
+    u_on_t = 0.5 * (u + u.shift(x=-1))
+    v_on_t = 0.5 * (v + v.shift(y=-1))
+    return u_on_t, v_on_t
+
+
 def rotate_to_geo(
     ui: xr.DataArray, vj: xr.DataArray, angle: xr.DataArray,
 ) -> tuple[xr.DataArray, xr.DataArray]:
-    """Rotate (i, j)-aligned vectors to geographic (east, north)."""
+    """Rotate (i, j)-aligned vectors to geographic (east, north).
+
+    Both *ui* and *vj* must be co-located (same grid point) for the
+    rotation to be physically meaningful.  Use :func:`interp_uv_to_t`
+    first when working with raw C-grid U/V output.
+    """
     u_east = ui * np.cos(angle) - vj * np.sin(angle)
     v_north = ui * np.sin(angle) + vj * np.cos(angle)
     return u_east, v_north
