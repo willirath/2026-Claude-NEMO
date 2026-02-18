@@ -641,8 +641,6 @@ A 10-year run (`NEMO_ITEND=108000`) was submitted.
 
 ## Observations
 
-(continued from Part IV)
-
 ### What the human caught that the AI didn't
 
 - **XIOS is not required.** Claude initially claimed it was a hard
