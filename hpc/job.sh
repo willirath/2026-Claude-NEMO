@@ -5,7 +5,7 @@
 #SBATCH --tasks-per-node=4
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=8G
-#SBATCH --time=06:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=nemo-gyre_%j.out
 #SBATCH --error=nemo-gyre_%j.err
 
