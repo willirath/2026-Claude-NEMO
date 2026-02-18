@@ -742,6 +742,108 @@ A 10-year run (`NEMO_ITEND=108000`) was submitted.
   via web tools, Claude extracted text from a locally stored PDF using
   `pdfminer-six` and synthesized a three-way configuration comparison.
 
+---
+
+## Part IX: Bagaeva Configuration Adaptation
+
+### 37. Snapshot vorticity
+
+> **User:** See the 50y output vorticity. Let's create a snapshot
+> vorticity instead of a mean vorticity?
+
+Claude modified `analysis/vorticity.ipynb` to plot the final time step
+instead of the time mean. The two-panel layout (ζ/f and wind stress
+curl) was preserved, now with date labels.
+
+### 38. Comparing with Bagaeva et al.
+
+> **User:** Once the results are in, compare our vorticity plot with
+> that of Bagaeva et al.
+
+The user provided the PDF from Zotero. Claude extracted Figure 10
+(page 21) — snapshots of relative vorticity for the 20 km double-gyre
+at various backscatter settings. Claude used `pdftoppm` (installed via
+`pixi global install poppler`) to render the page.
+
+Key comparison findings:
+- **Vorticity amplitude 4× weaker** — our ζ/f range ±0.035 vs
+  Bagaeva's ±0.15, consistent with Laplacian viscosity damping more
+  mesoscale energy than biharmonic
+- **Less eddy activity** — Bagaeva's baseline shows eddies throughout;
+  ours is largely quiescent in the interior
+- **Viscosity operator** identified as the dominant difference
+
+### 39. Adapting the configuration
+
+> **User:** Adapt our model config to be as similar as possible to the
+> 20km no backscatter Bagaeva config.
+
+Claude dispatched two parallel agents: one to extract exact parameters
+from the Bagaeva PDF, the other to audit all NEMO namelist options and
+source code for feasibility.
+
+The adaptation plan (`plans/bagaeva_adaptation.md`) identified 8
+changes — 5 namelist-only and 3 requiring a source override:
+
+**Namelist changes** (`namelist_cfg`):
+
+| Change | Before | After |
+|--------|--------|-------|
+| Viscosity | Laplacian, 20 000 m²/s | Biharmonic, 6.67×10¹⁰ m⁴/s |
+| EOS | EOS-80 (nonlinear) | Linear S-EOS, T-only |
+| Vertical mixing | TKE closure | Pacanowski-Philander |
+| Bottom drag | Nonlinear (quadratic) | Linear, Cd = 10⁻³ m/s |
+| Run length | 1 year | 59 years (50 spinup + 9 analysis) |
+
+**Source changes** (`MY_SRC/usrdef_sbc.F90`):
+
+| Change | Before | After |
+|--------|--------|-------|
+| Seasonal cycle | Active (wind, heat, E-P) | Removed (zcos_sais = 0) |
+| Heat restoring | −40 W/m²/K | −4 W/m²/K |
+| E-P flux | Sinusoidal evap − precip | Zero (constant salinity) |
+
+The biharmonic viscosity coefficient was the hardest to translate:
+Bagaeva's FESOM2 uses a flow-aware formulation (Juricke et al. 2020)
+with no direct NEMO equivalent. Claude chose constant biharmonic with
+`rn_Uv=0.1`, `rn_Lv=20e3` → ahm = 6.67×10¹⁰ m⁴/s, within the
+typical range for eddy-permitting models.
+
+Differences kept as-is: vertical levels (31 vs 40), bottom depth
+(4300 vs 4000 m), domain geometry, momentum advection scheme —
+all either non-trivial to change or fundamental model differences.
+
+### 40. Smoketest
+
+> **User:** I want you to smoketest run the adapted config locally and
+> make sure it works before I run on the HPC.
+
+Docker build succeeded (MY_SRC compiled into the binary). A 300-step
+run (10 days) completed with exit code 0, producing valid grid files.
+Analysis notebooks ran cleanly on the smoketest output.
+
+### 41. Deployment
+
+Docker image pushed to GHCR (`ghcr.io/willirath/2026-claude-nemo:latest`
+and `:9da3aa6`). SLURM wall time bumped from 6h to 24h (estimated
+runtime ~14 hours for 637200 steps). CLAUDE.md updated with the new
+physics configuration and MY_SRC documentation with code diffs.
+
+On NESH:
+```
+git pull
+singularity pull --force nemo-gyre.sif docker://ghcr.io/willirath/2026-claude-nemo:latest
+sbatch hpc/job.sh
+```
+
+Estimated completion: ~14 hours at ~750 steps/min.
+
+---
+
+## Observations
+
+(continued from Part IV)
+
 ### The interaction pattern
 
 The sessions followed a consistent rhythm: the user gave high-level
