@@ -18,9 +18,9 @@
 !-----------------------------------------------------------------------
    cn_exp      =  "GYRE"   !  experience name
    nn_it000    =       1   !  first time step
-   nn_itend    =   10800   !  last  time step (1 year, 360-day calendar)
+   nn_itend    =  637200   !  last  time step (59 years, 360-day calendar)
    nn_leapy    =      30   !  Leap year calendar (1) or not (0)
-   nn_stock    =   10800   !  frequency of creation of a restart file (modulo referenced to 1)
+   nn_stock    =  540000   !  frequency of creation of a restart file (every 50 years)
    nn_write    =     300   !  frequency of write in the output file   (modulo referenced to nn_it000)
    nn_istate   =       0   !  output the initial state (1) or not (0)
 /
@@ -106,7 +106,13 @@
 !-----------------------------------------------------------------------
 &namdrg        !   top/bottom drag coefficient                          (default: NO selection)
 !-----------------------------------------------------------------------
-   ln_non_lin = .true.     !  non-linear  drag: Cd = Cd0 |U|
+   ln_lin     = .true.     !  linear drag: tau = Cd0*Uc0 * u  (Bagaeva: Cd=0.001 m/s)
+/
+!-----------------------------------------------------------------------
+&namdrg_bot    !   bottom friction                                      (ln_drg_OFF =F)
+!-----------------------------------------------------------------------
+   rn_Cd0     =  1.e-3     !  drag coefficient [-]
+   rn_Uc0     =  1.0       !  ref. velocity [m/s] => linear drag coeff = Cd0*Uc0 = 1e-3 m/s
 /
 !!======================================================================
 !!                        Tracer (T & S) namelists                    !!
@@ -122,7 +128,14 @@
 !-----------------------------------------------------------------------
 &nameos        !   ocean Equation Of Seawater                           (default: NO selection)
 !-----------------------------------------------------------------------
-   ln_eos80    = .true.      !  = Use EOS80 equation of state
+   ln_seos     = .true.      !  = Use simplified EOS (linear, T-dependent only)
+   rn_a0       =  1.6550e-1  !  thermal expansion coefficient
+   rn_b0       =  0.0        !  no haline contraction (salinity constant)
+   rn_lambda1  =  0.0        !  cabbeling coeff in T^2  (=0 for linear eos)
+   rn_lambda2  =  0.0        !  cabbeling coeff in S^2  (=0 for linear eos)
+   rn_mu1      =  0.0        !  thermobaric coeff. in T (=0 for linear eos)
+   rn_mu2      =  0.0        !  thermobaric coeff. in S (=0 for linear eos)
+   rn_nu       =  0.0        !  cabbeling coeff in T*S  (=0 for linear eos)
 /
 !-----------------------------------------------------------------------
 &namtra_adv    !   advection scheme for tracer                          (default: NO selection)
@@ -178,11 +191,11 @@
 !-----------------------------------------------------------------------
 &namdyn_ldf    !   lateral diffusion on momentum                        (default: NO selection)
 !-----------------------------------------------------------------------
-   ln_dynldf_lap =  .true.     !    laplacian operator
+   ln_dynldf_blp =  .true.     !    bilaplacian operator (Bagaeva uses biharmonic)
    ln_dynldf_lev =  .true.     !  iso-level
-   nn_ahm_ijk_t  = 0           !  = 0  constant = 1/2  Uv*Lv   (lap case) 
-      rn_Uv      = 2.0              !  lateral viscous velocity [m/s] 
-      rn_Lv      = 20.e+3           !  lateral viscous length   [m]
+   nn_ahm_ijk_t  = 0           !  = 0  constant = 1/12 Uv*Lv^3 (blp case)
+      rn_Uv      = 0.1              !  lateral viscous velocity [m/s]
+      rn_Lv      = 20.e+3           !  lateral viscous length   [m]  => ahm = 6.67e10 m4/s
 /
 !!======================================================================
 !!                     vertical physics namelists                     !!
@@ -198,7 +211,7 @@
 !-----------------------------------------------------------------------
 &namzdf        !   vertical physics                                     (default: NO selection)
 !-----------------------------------------------------------------------
-   ln_zdftke   = .true.       !  Turbulent Kinetic Energy closure       (T =>   fill namzdf_tke)
+   ln_zdfric   = .true.       !  Richardson number mixing (Pacanowski-Philander)
    ln_zdfevd   = .true.       !  enhanced vertical diffusion
       nn_evdm     =    1         ! apply on tracer (=0) or on tracer and momentum (=1)
       rn_evd      =  100.        ! mixing coefficient [m2/s]
@@ -209,9 +222,11 @@
    nn_havtb    =    0         !  horizontal shape for avtb (=1) or not (=0)
 /
 !-----------------------------------------------------------------------
-&namzdf_tke    !   turbulent eddy kinetic dependent vertical diffusion  (ln_zdftke =T)
+&namzdf_ric    !   Richardson number dependent vertical diffusion       (ln_zdfric =T)
 !-----------------------------------------------------------------------
-   nn_etau     =   0       !  penetration of tke below the mixed layer (ML) due to internal & intertial waves
+   rn_avmri    =  100.e-4     !  maximum vertical viscosity [m2/s]  (PP81 default)
+   rn_alp      =    5.        !  coefficient of the parameterization
+   nn_ric      =    2         !  exponent of the parameterization
 /
 !!======================================================================
 !!                  ***  Diagnostics namelists  ***                   !!
