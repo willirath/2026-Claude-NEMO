@@ -637,109 +637,6 @@ ran the notebooks against the HPC output via the `output` symlink.
 
 A 10-year run (`NEMO_ITEND=108000`) was submitted.
 
----
-
-## Observations
-
-### What the human caught that the AI didn't
-
-- **XIOS is not required.** Claude initially claimed it was a hard
-  dependency. The user knew IOIPSL provides native NetCDF output and
-  pushed back. This saved an entire build stage.
-
-- **Vector rotation.** Claude plotted grid-aligned vectors as if they
-  were geographic. The user recognized that the GYRE grid is rotated 45°
-  and that currents/wind stress must be transformed.
-
-- **Cross-platform anchor rendering.** The user tested on Jupyter Lab,
-  GitLab, and VS Code and found inconsistencies that Claude couldn't
-  have predicted.
-
-- **No OpenMP in NEMO.** The user suggested OpenMP for shared-memory
-  parallelism. Claude investigated and correctly reported that NEMO has
-  zero `!$omp` directives — but the user had to prompt the
-  investigation. The right answer (MPI ranks) was the obvious
-  alternative.
-
-- **Submodule hygiene.** Claude initially edited files inside the `nemo/`
-  submodule. The user flagged that these changes can't be pushed and
-  asked for a clean separation. The solution — a project-local namelist
-  copied in at Docker build time — was straightforward once prompted.
-
-- **Quiver density.** At 5× resolution, the original `skip=2` quiver
-  stride produced an unreadable arrow field. The user caught this and
-  suggested scaling the skip.
-
-- **Area weighting.** Claude's initial notebooks computed domain means
-  with flat `.mean()` — no area weighting, no land mask. On NEMO's
-  rotated grid with varying cell sizes, this silently biases results.
-  The user required proper `weighted()` aggregation.
-
-- **Docker CPU quota vs pinning.** When the user observed 800% CPU,
-  Claude initially dismissed it ("already using 4 ranks"). The user
-  insisted on a thorough check, and Claude discovered `--cpus` is a
-  quota, not a core-pinning flag.
-
-- **Hidden configuration.** The user noticed that key decisions (dropping
-  PISCES, CPP keys) were buried in the Dockerfile. This prompted the
-  refactoring to an idiomatic `configs/GYRE_DOCKER/` structure.
-
-- **Docker filesystem layout.** Claude put configs at `/configs` in the
-  container root. The user asked "is it safe to just put stuff into /?"
-  and cascaded into a clean `/opt/` layout.
-
-- **Library API design.** Claude embedded a default `OUTPUT_DIR` in the
-  shared library. The user immediately flagged it: "Don't hide the output
-  dir in the lib. Really bad pattern."
-
-- **Host MPI not needed.** The plan called for `srun --mpi=pmix` with
-  host MPI. The user asked "do we need to bind the host MPI for
-  single-node execution?" — the answer was no, simplifying the job
-  script significantly.
-
-- **gitignore trailing slash.** `output/` only matches directories, not
-  symlinks. The user caught this after the HPC job created a symlink.
-
-### What the AI handled well
-
-- **Mechanical iteration.** Editing 5 notebooks, re-executing, exporting
-  figures, updating the Makefile and README — the kind of work that's
-  tedious but must be done carefully.
-
-- **NEMO internals.** Navigating the Fortran source to find IOIPSL
-  output paths, identifying the right NetCDF variables, understanding
-  `mesh_mask.nc` grid metrics for volume integrals.
-
-- **Debugging cascades.** Docker build failures, Fortran runtime errors,
-  missing PISCES files, SLURM spool paths, Singularity bind-mount
-  overlays — each required reading logs, tracing the issue, and applying
-  a targeted fix. The NESH deployment required four fix iterations, each
-  diagnosed from the error output.
-
-- **Resolution scaling.** Given `nn_GYRE=5`, Claude correctly derived
-  all dependent parameters (timestep, diffusion lengths, output
-  frequency, iteration counts) from CFL and physical scaling arguments.
-
-- **Incremental testing.** Smoke-testing with 10 steps before committing
-  to long runs caught the rebuild_nemo issue (zero time records) early.
-  Timing a 1-month run to estimate full-run cost avoided a blind
-  36-minute wait.
-
-- **Build system plumbing.** Compiling `rebuild_nemo` from Fortran
-  source, wiring it into the Makefile run target with proper shell
-  escaping, and handling the filename suffix change across all notebooks
-  — unglamorous but necessary infrastructure work.
-
-- **Cross-platform deployment.** Cross-building the Docker image for
-  amd64 via QEMU, pushing to GHCR, creating a SLURM job script with
-  proper Singularity bind mounts, and handling the chain of
-  container-vs-host filesystem issues — all without access to the target
-  cluster.
-
-- **Literature extraction.** When paywalled papers couldn't be fetched
-  via web tools, Claude extracted text from a locally stored PDF using
-  `pdfminer-six` and synthesized a three-way configuration comparison.
-
 ### 37. Interpolate before rotating
 
 > **User:** See the 50y output vorticity.
@@ -867,7 +764,104 @@ Estimated completion: ~14 hours at ~750 steps/min.
 
 ## Observations
 
-(continued from Part IV)
+### What the human caught that the AI didn't
+
+- **XIOS is not required.** Claude initially claimed it was a hard
+  dependency. The user knew IOIPSL provides native NetCDF output and
+  pushed back. This saved an entire build stage.
+
+- **Vector rotation.** Claude plotted grid-aligned vectors as if they
+  were geographic. The user recognized that the GYRE grid is rotated 45°
+  and that currents/wind stress must be transformed.
+
+- **Cross-platform anchor rendering.** The user tested on Jupyter Lab,
+  GitLab, and VS Code and found inconsistencies that Claude couldn't
+  have predicted.
+
+- **No OpenMP in NEMO.** The user suggested OpenMP for shared-memory
+  parallelism. Claude investigated and correctly reported that NEMO has
+  zero `!$omp` directives — but the user had to prompt the
+  investigation. The right answer (MPI ranks) was the obvious
+  alternative.
+
+- **Submodule hygiene.** Claude initially edited files inside the `nemo/`
+  submodule. The user flagged that these changes can't be pushed and
+  asked for a clean separation. The solution — a project-local namelist
+  copied in at Docker build time — was straightforward once prompted.
+
+- **Quiver density.** At 5× resolution, the original `skip=2` quiver
+  stride produced an unreadable arrow field. The user caught this and
+  suggested scaling the skip.
+
+- **Area weighting.** Claude's initial notebooks computed domain means
+  with flat `.mean()` — no area weighting, no land mask. On NEMO's
+  rotated grid with varying cell sizes, this silently biases results.
+  The user required proper `weighted()` aggregation.
+
+- **Docker CPU quota vs pinning.** When the user observed 800% CPU,
+  Claude initially dismissed it ("already using 4 ranks"). The user
+  insisted on a thorough check, and Claude discovered `--cpus` is a
+  quota, not a core-pinning flag.
+
+- **Hidden configuration.** The user noticed that key decisions (dropping
+  PISCES, CPP keys) were buried in the Dockerfile. This prompted the
+  refactoring to an idiomatic `configs/GYRE_DOCKER/` structure.
+
+- **Docker filesystem layout.** Claude put configs at `/configs` in the
+  container root. The user asked "is it safe to just put stuff into /?"
+  and cascaded into a clean `/opt/` layout.
+
+- **Library API design.** Claude embedded a default `OUTPUT_DIR` in the
+  shared library. The user immediately flagged it: "Don't hide the output
+  dir in the lib. Really bad pattern."
+
+- **Host MPI not needed.** The plan called for `srun --mpi=pmix` with
+  host MPI. The user asked "do we need to bind the host MPI for
+  single-node execution?" — the answer was no, simplifying the job
+  script significantly.
+
+- **gitignore trailing slash.** `output/` only matches directories, not
+  symlinks. The user caught this after the HPC job created a symlink.
+
+### What the AI handled well
+
+- **Mechanical iteration.** Editing 5 notebooks, re-executing, exporting
+  figures, updating the Makefile and README — the kind of work that's
+  tedious but must be done carefully.
+
+- **NEMO internals.** Navigating the Fortran source to find IOIPSL
+  output paths, identifying the right NetCDF variables, understanding
+  `mesh_mask.nc` grid metrics for volume integrals.
+
+- **Debugging cascades.** Docker build failures, Fortran runtime errors,
+  missing PISCES files, SLURM spool paths, Singularity bind-mount
+  overlays — each required reading logs, tracing the issue, and applying
+  a targeted fix. The NESH deployment required four fix iterations, each
+  diagnosed from the error output.
+
+- **Resolution scaling.** Given `nn_GYRE=5`, Claude correctly derived
+  all dependent parameters (timestep, diffusion lengths, output
+  frequency, iteration counts) from CFL and physical scaling arguments.
+
+- **Incremental testing.** Smoke-testing with 10 steps before committing
+  to long runs caught the rebuild_nemo issue (zero time records) early.
+  Timing a 1-month run to estimate full-run cost avoided a blind
+  36-minute wait.
+
+- **Build system plumbing.** Compiling `rebuild_nemo` from Fortran
+  source, wiring it into the Makefile run target with proper shell
+  escaping, and handling the filename suffix change across all notebooks
+  — unglamorous but necessary infrastructure work.
+
+- **Cross-platform deployment.** Cross-building the Docker image for
+  amd64 via QEMU, pushing to GHCR, creating a SLURM job script with
+  proper Singularity bind mounts, and handling the chain of
+  container-vs-host filesystem issues — all without access to the target
+  cluster.
+
+- **Literature extraction.** When paywalled papers couldn't be fetched
+  via web tools, Claude extracted text from a locally stored PDF using
+  `pdfminer-six` and synthesized a three-way configuration comparison.
 
 ### The interaction pattern
 
