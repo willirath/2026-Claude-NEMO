@@ -639,7 +639,7 @@ A 10-year run (`NEMO_ITEND=108000`) was submitted.
 
 ---
 
-## Part IX: Bagaeva Configuration Adaptation
+## Part IX: C-grid Vector Interpolation
 
 ### 37. Interpolate before rotating
 
@@ -667,6 +667,10 @@ Updated `circulation.ipynb` and `eddies.ipynb` to call
 `forcing_ke.ipynb` was left unchanged — IOIPSL writes `sozotaux` and
 `sometauy` into the T-grid file without interpolation (a known
 limitation of the legacy diagnostics; XIOS handles this correctly).
+
+---
+
+## Part X: Bagaeva Configuration Adaptation
 
 ### 38. Snapshot vorticity
 
