@@ -262,11 +262,57 @@ Makefile                    # make build &rarr; run &rarr; analyze</code></pre>
       <tr><th></th><th>Levy 2010</th><th>Bagaeva 2024</th><th>GYRE_DOCKER</th></tr>
       <tr><td><strong>Model</strong></td><td>NEMO</td><td>FESOM</td><td>NEMO</td></tr>
       <tr><td><strong>Resolution</strong></td><td>1/5&deg;</td><td>~20 km</td><td>1/5&deg;</td></tr>
-      <tr><td><strong>Runtime</strong></td><td>100 yr (70 spinup)</td><td>59 yr</td><td>10 yr (so far)</td></tr>
-      <tr><td><strong>Diagnostics</strong></td><td>SSH, SST, &psi;</td><td>SSH, SST, KE</td><td>SSH, SST, KE, fluxes</td></tr>
+      <tr><td><strong>Viscosity</strong></td><td>Biharmonic</td><td>Flow-aware biharm.</td><td>Biharmonic (constant)</td></tr>
+      <tr><td><strong>Runtime</strong></td><td>100 yr (70 spinup)</td><td>59 yr (50 spinup)</td><td>59 yr (50 spinup)</td></tr>
+      <tr><td><strong>Diagnostics</strong></td><td>SSH, SST, &psi;</td><td>SSH, SST, KE</td><td>SSH, SST, KE, &zeta;/f</td></tr>
     </table>
     <p class="small">Decade-scale runs are the entry point for meaningful
     ocean dynamics &mdash; hence the HPC deployment.</p>
+  </section>
+</section>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- ADAPTING THE CONFIGURATION -->
+<!-- ════════════════════════════════════════════ -->
+<section>
+  <section>
+    <h1>Adapting the Configuration</h1>
+    <blockquote class="center">Adapt our model config to be as similar as possible
+    to the 20&thinsp;km no-backscatter Bagaeva config.</blockquote>
+  </section>
+
+  <section>
+    <h3>Comparing with the Literature</h3>
+    <p>Our 1-year vorticity field showed &zeta;/f &approx; &plusmn;0.035 &mdash;
+    <strong>4&times; weaker</strong> than Bagaeva's &plusmn;0.15 at the same resolution.</p>
+    <p>Root cause: Laplacian viscosity over-damps mesoscale eddies.
+    Bagaeva uses biharmonic (scale-selective) viscosity, which damps
+    grid noise while preserving larger structures.</p>
+    <div class="center">
+      <img src="./vorticity_curl_tau.png" alt="Vorticity and wind stress curl" style="max-height: 350px;">
+    </div>
+    <p class="center small">Snapshot &zeta;/f (left) and curl(&tau;)/(&rho;&#8320;f) (right)
+    from 1-year spinup &mdash; weak eddies and clean gyre structure.</p>
+  </section>
+
+  <section>
+    <h3>8 Changes, 2 Files</h3>
+    <p>Claude read the Bagaeva paper and NEMO source, then translated
+    FESOM parameters to NEMO equivalents:</p>
+    <table>
+      <tr><th>Parameter</th><th>Before</th><th>After (Bagaeva)</th></tr>
+      <tr><td>Viscosity</td><td>Laplacian</td><td>Biharmonic, 6.7&times;10&sup1;&sup0; m&sup4;/s</td></tr>
+      <tr><td>EOS</td><td>EOS-80 (nonlinear)</td><td>Linear, T-only</td></tr>
+      <tr><td>Vertical mixing</td><td>TKE closure</td><td>Pacanowski-Philander</td></tr>
+      <tr><td>Bottom drag</td><td>Nonlinear quadratic</td><td>Linear, 10&sup3; m/s</td></tr>
+      <tr><td>Seasonal cycle</td><td>Full (wind + heat)</td><td>Removed</td></tr>
+      <tr><td>Heat restoring</td><td>&minus;40 W/m&sup2;/K</td><td>&minus;4 W/m&sup2;/K</td></tr>
+      <tr><td>E-P flux</td><td>Sinusoidal</td><td>Zero</td></tr>
+      <tr><td>Run length</td><td>10 years</td><td>59 years (50 spinup + 9)</td></tr>
+    </table>
+    <p class="small">5 namelist changes in <code>namelist_cfg</code>;
+    3 Fortran overrides in <code>MY_SRC/usrdef_sbc.F90</code>.
+    Smoketested locally, then deployed to HPC for a 59-year run.</p>
   </section>
 </section>
 
@@ -317,17 +363,19 @@ NEMO_ITEND=108000 sbatch hpc/job.sh    # 10-year run</code></pre>
   </section>
 
   <section>
-    <h3>10-Year Run</h3>
+    <h3>10-Year Run &rarr; 59-Year Run</h3>
     <blockquote>So go for 10 years. Make sure the output symlinking doesn't fail
     if output symlink exists.</blockquote>
     <p>After the fixes, the 1-year test run completed on NESH.
     <code>make analyze</code> ran the notebooks against the HPC output.</p>
     <p>Then: <code>NEMO_ITEND=108000 sbatch hpc/job.sh</code> &mdash;
     a 10-year simulation, ~2.5 hours on a single NESH node.</p>
-    <blockquote>Let's use a repo-local singularity cache dir and just ignore it.</blockquote>
+    <p>After adapting the configuration to match Bagaeva: rebuilt the
+    container, re-pushed to GHCR, re-pulled on NESH, and submitted
+    a 59-year run (~14 hours wall time).</p>
     <p class="small">Practical decisions made in passing: cache placement,
-    gitignore updates, <code>output</code> symlink handling &mdash; each a one-liner
-    from the user, resolved immediately.</p>
+    gitignore updates, <code>output</code> symlink handling, wall time bumps &mdash;
+    each a one-liner from the user, resolved immediately.</p>
   </section>
 </section>
 
@@ -363,6 +411,9 @@ NEMO_ITEND=108000 sbatch hpc/job.sh    # 10-year run</code></pre>
     <p>The AI treated the submodule as just another directory.
     Repo structure conventions needed to be explicitly enforced &mdash;
     the AI didn't infer them from context.</p>
+    <p>Similarly, Claude rotated U/V vectors to geographic coordinates
+    <em>before</em> interpolating to T-points &mdash; mixing values from
+    different grid locations. The user caught the ordering error.</p>
   </section>
 
   <section>
@@ -376,9 +427,9 @@ NEMO_ITEND=108000 sbatch hpc/job.sh    # 10-year run</code></pre>
         <td>XIOS is optional; vectors need rotation;<br>
           area weighting required; no hidden defaults;<br>
           host MPI unnecessary for single-node;<br>
-          Docker CPU quota &ne; core pinning</td>
+          vorticity 4&times; too weak &rarr; wrong viscosity</td>
         <td>Finding IOIPSL in Fortran source;<br>
-          refactoring 5 notebooks + shared library;<br>
+          translating FESOM params to NEMO namelists;<br>
           cross-building amd64 image via QEMU;<br>
           diagnosing 4 SLURM failures from error logs</td></tr>
     </table>
