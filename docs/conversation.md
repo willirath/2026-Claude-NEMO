@@ -637,6 +637,10 @@ ran the notebooks against the HPC output via the `output` symlink.
 
 A 10-year run (`NEMO_ITEND=108000`) was submitted.
 
+---
+
+## Part IX: Bagaeva Configuration Adaptation
+
 ### 37. Interpolate before rotating
 
 > **User:** See the 50y output vorticity.
@@ -663,10 +667,6 @@ Updated `circulation.ipynb` and `eddies.ipynb` to call
 `forcing_ke.ipynb` was left unchanged — IOIPSL writes `sozotaux` and
 `sometauy` into the T-grid file without interpolation (a known
 limitation of the legacy diagnostics; XIOS handles this correctly).
-
----
-
-## Part IX: Bagaeva Configuration Adaptation
 
 ### 38. Snapshot vorticity
 
