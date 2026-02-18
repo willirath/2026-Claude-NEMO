@@ -742,11 +742,38 @@ A 10-year run (`NEMO_ITEND=108000`) was submitted.
   via web tools, Claude extracted text from a locally stored PDF using
   `pdfminer-six` and synthesized a three-way configuration comparison.
 
+### 37. Interpolate before rotating
+
+> **User:** See the 50y output vorticity.
+
+Before the Bagaeva adaptation work began, Claude fixed a subtle bug in
+the vector processing pipeline. On NEMO's Arakawa C-grid, U-velocity
+lives on U-points and V-velocity on V-points — they are never
+co-located. The `rotate_to_geo()` function was being applied to raw
+U/V fields, combining values from different physical locations under a
+single rotation matrix.
+
+The correct order of operations: **interpolate to T-points first, then
+rotate**. Claude added `interp_uv_to_t()` to `gyre.py`:
+
+```python
+def interp_uv_to_t(u, v):
+    u_on_t = 0.5 * (u + u.shift(x=-1))  # U-point → T-point
+    v_on_t = 0.5 * (v + v.shift(y=-1))  # V-point → T-point
+    return u_on_t, v_on_t
+```
+
+Updated `circulation.ipynb` and `eddies.ipynb` to call
+`interp_uv_to_t()` before `rotate_to_geo()`. Wind stress in
+`forcing_ke.ipynb` was left unchanged — IOIPSL writes `sozotaux` and
+`sometauy` into the T-grid file without interpolation (a known
+limitation of the legacy diagnostics; XIOS handles this correctly).
+
 ---
 
 ## Part IX: Bagaeva Configuration Adaptation
 
-### 37. Snapshot vorticity
+### 38. Snapshot vorticity
 
 > **User:** See the 50y output vorticity. Let's create a snapshot
 > vorticity instead of a mean vorticity?
@@ -755,7 +782,7 @@ Claude modified `analysis/vorticity.ipynb` to plot the final time step
 instead of the time mean. The two-panel layout (ζ/f and wind stress
 curl) was preserved, now with date labels.
 
-### 38. Comparing with Bagaeva et al.
+### 39. Comparing with Bagaeva et al.
 
 > **User:** Once the results are in, compare our vorticity plot with
 > that of Bagaeva et al.
@@ -773,7 +800,7 @@ Key comparison findings:
   ours is largely quiescent in the interior
 - **Viscosity operator** identified as the dominant difference
 
-### 39. Adapting the configuration
+### 40. Adapting the configuration
 
 > **User:** Adapt our model config to be as similar as possible to the
 > 20km no backscatter Bagaeva config.
@@ -813,7 +840,7 @@ Differences kept as-is: vertical levels (31 vs 40), bottom depth
 (4300 vs 4000 m), domain geometry, momentum advection scheme —
 all either non-trivial to change or fundamental model differences.
 
-### 40. Smoketest
+### 41. Smoketest
 
 > **User:** I want you to smoketest run the adapted config locally and
 > make sure it works before I run on the HPC.
@@ -822,7 +849,7 @@ Docker build succeeded (MY_SRC compiled into the binary). A 300-step
 run (10 days) completed with exit code 0, producing valid grid files.
 Analysis notebooks ran cleanly on the smoketest output.
 
-### 41. Deployment
+### 42. Deployment
 
 Docker image pushed to GHCR (`ghcr.io/willirath/2026-claude-nemo:latest`
 and `:9da3aa6`). SLURM wall time bumped from 6h to 24h (estimated
