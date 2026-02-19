@@ -48,6 +48,10 @@ def load_output(pattern: str, output_dir: str | Path) -> xr.Dataset:
     ds = xr.open_mfdataset(files, decode_cf=False)
     ds = _rename_depth(ds)
     ds = _assign_xy_coords(ds)
+    # IOIPSL stores nav_lon/nav_lat with a time_counter dim; drop it
+    for coord in ("nav_lon", "nav_lat"):
+        if coord in ds and "time_counter" in ds[coord].dims:
+            ds[coord] = ds[coord].isel(time_counter=0).drop_vars("time_counter")
     return ds
 
 
