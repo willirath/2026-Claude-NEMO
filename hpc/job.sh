@@ -24,7 +24,7 @@ REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 export SINGULARITY_CACHEDIR=${SINGULARITY_CACHEDIR:-$REPO_DIR/.singularity_cache}
 
 SIF=${SIF:-$REPO_DIR/nemo-gyre.sif}
-RUNDIR=${RUNDIR:-$REPO_DIR/runs/run_$$}
+RUNDIR=${RUNDIR:-$REPO_DIR/runs/run_$$}  # TODO: use $SLURM_JOB_ID instead of $$
 mkdir -p "$RUNDIR"
 
 # Copy namelists out of container for editing, then bind-mount back
