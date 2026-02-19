@@ -7,8 +7,10 @@ GYRE configuration — an idealized double-gyre basin on a beta-plane.
 |:---:|:---:|:---:|
 | [![SSH variance](figures/ssh_variance.png)](figures/ssh_variance.png) | [![Mean SST](figures/sst_mean.png)](figures/sst_mean.png) | [![Surface currents](figures/surface_currents.png)](figures/surface_currents.png) |
 | [ssh.ipynb](analysis/ssh.ipynb) | [sst.ipynb](analysis/sst.ipynb) | [circulation.ipynb](analysis/circulation.ipynb) |
-| [![Surface KE](figures/surface_ke.png)](figures/surface_ke.png) | [![Heat flux](figures/heat_flux.png)](figures/heat_flux.png) | [![Vorticity](figures/vorticity_curl_tau.png)](figures/vorticity_curl_tau.png) |
+| [![Surface KE](figures/surface_ke.png)](figures/surface_ke.png) | [![Heat flux](figures/heat_flux.png)](figures/heat_flux.png) | [![Vorticity](figures/vorticity.png)](figures/vorticity.png) |
 | [circulation.ipynb](analysis/circulation.ipynb) | [heat_salt.ipynb](analysis/heat_salt.ipynb) | [vorticity.ipynb](analysis/vorticity.ipynb) |
+| [![Wind stress curl](figures/curl_tau.png)](figures/curl_tau.png) | | |
+| [vorticity.ipynb](analysis/vorticity.ipynb) | | |
 
 ## Prerequisites
 
