@@ -65,6 +65,7 @@ def parse_nc3_header(raw):
         return n  # caller doesn't need the name
 
     def skip_atts():
+        nonlocal pos
         tag = read_int()
         assert tag in (0, 12), f"Expected att tag, got {tag} at pos {pos}"
         count = read_int()
@@ -72,7 +73,6 @@ def parse_nc3_header(raw):
             read_string()
             att_type = read_int()
             att_len = read_int()
-            nonlocal pos
             pos += (att_len * _type_size(att_type) + 3) & ~3
 
     numrecs = read_int()
