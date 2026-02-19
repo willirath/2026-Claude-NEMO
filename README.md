@@ -23,14 +23,41 @@ GYRE configuration — an idealized double-gyre basin on a beta-plane.
 make all        # build → run → analyze
 ```
 
-Individual targets:
+### Local (Docker) targets
 
 ```bash
-make build      # build Docker image with compiled NEMO
+make build      # build Docker image (compiles NEMO with gfortran/OpenMPI)
 make run        # run simulation (4 MPI ranks), output to output/
-make analyze    # generate plots from simulation output
-make clean      # remove output directory
+make postproc   # rebuild + calendar-fix processor files already in output/
+make analyze    # execute analysis notebooks headless, update figures
+make slides     # serve docs/slides.html at http://localhost:8000
+make push       # cross-build linux/amd64 image and push to GHCR
+make clean      # remove output/
 ```
+
+### HPC (Singularity) workflow
+
+```bash
+# 1. Local: push image to GHCR
+make push
+
+# 2. NESH: pull image and submit job (see hpc/README.md for full setup)
+singularity pull --force nemo-gyre.sif docker://ghcr.io/willirath/2026-claude-nemo:latest
+sbatch hpc/job.sh          # full 59-year run; runs analyze automatically on finish
+
+# 3. NESH: intermediate snapshot while run is in progress
+OUTPUT_DIR=runs/run_<PID> make postproc-singularity   # rebuild processor files
+OUTPUT_DIR=runs/run_<PID> make analyze                 # run notebooks
+```
+
+Override number of timesteps (e.g. 10-year test run at rn_Dt=2880):
+```bash
+NEMO_ITEND=108000 sbatch hpc/job.sh
+```
+
+`postproc-singularity` copies processor files to a scratch directory, patches
+the IOIPSL-unflushed `numrecs` header field, runs `rebuild_nemo`, then copies
+the combined files back — leaving the originals untouched for the running job.
 
 ## Output
 

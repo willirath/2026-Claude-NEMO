@@ -7,12 +7,58 @@ Dockerized NEMO ocean model running the GYRE configuration — an idealized wind
 ## Quick Reference
 
 ```
-make all        # Full pipeline: build → run → analyze
-make build      # Build Docker image (compiles NEMO with gfortran/OpenMPI)
-make run        # Run simulation (4 MPI ranks), output NetCDF to output/
-make analyze    # Execute analysis notebooks (headless)
-make clean      # Remove output/
+make all                   # Full pipeline: build → run → analyze
+make build                 # Build Docker image (compiles NEMO with gfortran/OpenMPI)
+make run                   # Run simulation (4 MPI ranks), output NetCDF to output/
+make postproc              # Rebuild processor files in output/ (Docker; safe mid-run)
+make postproc-singularity  # Same using Singularity/SIF (for HPC)
+make analyze               # Execute analysis notebooks (headless)
+make slides                # Serve docs/slides.html at localhost:8000
+make push                  # Cross-build linux/amd64 image and push to GHCR
+make clean                 # Remove output/
 ```
+
+Overridable variables: `NP` (MPI ranks, default 4), `SIF` (path to .sif file),
+`OUTPUT_DIR` (default `output`).
+
+## Workflows
+
+### Local (Docker)
+
+```bash
+git clone --recurse-submodules <repo>
+pixi install
+make all          # build image, run 59-year simulation, analyze
+```
+
+For a short test run, edit `nn_itend` in `configs/GYRE_DOCKER/EXPREF/namelist_cfg`
+before `make run`.
+
+### HPC (NESH / Singularity)
+
+```bash
+# Local: build and push image
+make push
+
+# NESH: first-time setup (see hpc/README.md for full details)
+singularity pull --force nemo-gyre.sif docker://ghcr.io/willirath/2026-claude-nemo:latest
+pixi install
+
+# NESH: submit full 59-year run (runs analyze automatically on completion)
+sbatch hpc/job.sh
+
+# NESH: 10-year test run
+NEMO_ITEND=108000 sbatch hpc/job.sh
+
+# NESH: intermediate analysis while run is in progress
+OUTPUT_DIR=runs/run_<PID> make postproc-singularity
+OUTPUT_DIR=runs/run_<PID> make analyze
+```
+
+`postproc-singularity` works around IOIPSL not flushing `numrecs` to disk
+mid-run: it copies processor files to a scratch dir, patches the header, runs
+`rebuild_nemo`, copies combined files back, and discards the scratch dir.
+The running NEMO process is never touched.
 
 ## Project Structure
 
