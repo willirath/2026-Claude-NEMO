@@ -1,8 +1,10 @@
 IMAGE := nemo-gyre
 GHCR_IMAGE := ghcr.io/willirath/2026-claude-nemo
 OUTPUT_DIR := output
+SIF ?= $(CURDIR)/nemo-gyre.sif
+NP ?= 4
 
-.PHONY: all build run analyze slides clean push
+.PHONY: all build run analyze postproc postproc-singularity slides clean push
 
 all: build run analyze
 
@@ -21,6 +23,40 @@ run:
 		/opt/nemo-code/tools/REBUILD_NEMO/rebuild_nemo mesh_mask 4 && rm -f mesh_mask_[0-9][0-9][0-9][0-9].nc && \
 		cp -v *.nc /output/'
 	@# Fix IOIPSL '360d' → CF-compliant '360_day' (see analysis/calendar_note.md)
+	pixi run python -c "from netCDF4 import Dataset; from glob import glob; [((d:=Dataset(f,'r+')), d['time_counter'].setncattr('calendar','360_day'), d.close()) for f in glob('$(OUTPUT_DIR)/*_grid_*.nc')]"
+
+postproc:
+	docker run --rm --hostname nemo -v $(CURDIR)/$(OUTPUT_DIR):/output $(IMAGE) \
+		bash -c '\
+		cd /output && \
+		for f in *_grid_T_0000.nc *_grid_U_0000.nc *_grid_V_0000.nc *_grid_W_0000.nc; do \
+			if [ -f "$$f" ]; then \
+				base=$${f%_0000.nc}; \
+				/opt/nemo-code/tools/REBUILD_NEMO/rebuild_nemo $$base $(NP); \
+			fi; \
+		done && \
+		if [ -f mesh_mask_0000.nc ]; then \
+			/opt/nemo-code/tools/REBUILD_NEMO/rebuild_nemo mesh_mask $(NP); \
+		fi'
+	@# Fix IOIPSL '360d' → CF-compliant '360_day' on any grid files that need it
+	pixi run python -c "from netCDF4 import Dataset; from glob import glob; [((d:=Dataset(f,'r+')), d['time_counter'].setncattr('calendar','360_day'), d.close()) for f in glob('$(OUTPUT_DIR)/*_grid_*.nc')]"
+
+postproc-singularity:
+	singularity exec \
+		--bind $(CURDIR)/$(OUTPUT_DIR):/opt/nemo-run \
+		$(SIF) \
+		bash -c '\
+		cd /opt/nemo-run && \
+		for f in *_grid_T_0000.nc *_grid_U_0000.nc *_grid_V_0000.nc *_grid_W_0000.nc; do \
+			if [ -f "$$f" ]; then \
+				base=$${f%_0000.nc}; \
+				/opt/nemo-code/tools/REBUILD_NEMO/rebuild_nemo $$base $(NP); \
+			fi; \
+		done && \
+		if [ -f mesh_mask_0000.nc ]; then \
+			/opt/nemo-code/tools/REBUILD_NEMO/rebuild_nemo mesh_mask $(NP); \
+		fi'
+	@# Fix IOIPSL '360d' → CF-compliant '360_day'
 	pixi run python -c "from netCDF4 import Dataset; from glob import glob; [((d:=Dataset(f,'r+')), d['time_counter'].setncattr('calendar','360_day'), d.close()) for f in glob('$(OUTPUT_DIR)/*_grid_*.nc')]"
 
 analyze:

@@ -35,7 +35,7 @@ Run with the default timestep count (from the container's namelist):
 sbatch hpc/job.sh
 ```
 
-Override the number of timesteps (e.g., 108000 for ~10 years at rn_Dt=7200):
+Override the number of timesteps (e.g., 108000 for ~10 years at rn_Dt=2880):
 
 ```bash
 NEMO_ITEND=108000 sbatch hpc/job.sh

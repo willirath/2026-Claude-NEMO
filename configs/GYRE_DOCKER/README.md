@@ -7,10 +7,10 @@ NEMO configuration for Dockerized GYRE simulation. Based on `GYRE_PISCES` refere
 ```
 GYRE_DOCKER/
 ├── EXPREF/
-│   └── namelist_cfg    # Runtime parameters (resolution, timestep, output)
-├── MY_SRC/             # Custom Fortran source (empty — uses GYRE defaults)
-│   └── .gitkeep
-├── cpp_GYRE_DOCKER.fcm # CPP keys (compile-time feature selection)
+│   └── namelist_cfg       # Runtime parameters (resolution, timestep, output)
+├── MY_SRC/                # Custom Fortran source overrides
+│   └── usrdef_sbc.F90     # Modified surface forcing (see below)
+├── cpp_GYRE_DOCKER.fcm    # CPP keys (compile-time feature selection)
 └── README.md
 ```
 
@@ -38,15 +38,34 @@ See `EXPREF/namelist_cfg` for full details. Key parameters:
 | `nn_write` | Output frequency (timesteps per output record) |
 | `ln_usr` | Analytical forcing (no input files) |
 
+## Physics Configuration
+
+Adapted to match the Bagaeva et al. (2024) 20 km no-backscatter double-gyre baseline:
+
+| Parameter | Setting |
+|-----------|---------|
+| Viscosity | Biharmonic (bilaplacian), ahm ≈ 6.67×10¹⁰ m⁴/s |
+| EOS | Linear, T-dependent only (`ln_seos`, nonlinear terms zeroed) |
+| Vertical mixing | Pacanowski-Philander (Richardson-number dependent) |
+| Bottom drag | Linear, Cd₀·Uc₀ = 10⁻³ m/s |
+| Forcing | Steady (no seasonal cycle), heat restoring −4 W/m²/K, no E-P |
+| Run length | 59 years (50 spinup + 9 analysis), timestep 2880 s |
+
 ## MY_SRC
 
-Empty by default — uses standard GYRE user-defined modules from NEMO source:
+Contains `usrdef_sbc.F90`, copied from `nemo/src/OCE/USR/usrdef_sbc.F90` and
+modified to match the Bagaeva et al. (2024) 20 km no-backscatter baseline:
+
+| Change | Before | After |
+|--------|--------|-------|
+| Seasonal cycle | Full cosine modulation on wind + heat | Removed (`zcos_sais1/2 = 0`) |
+| Heat restoring | −40 W/m²/K | −4 W/m²/K |
+| E-P flux | Sinusoidal freshwater forcing | Zero (salinity conserved) |
+
+The other standard GYRE source files are used unmodified from the submodule:
 - `usrdef_hgr.F90` — Horizontal grid (beta-plane, 45° rotation)
 - `usrdef_zgr.F90` — Vertical grid
-- `usrdef_sbc.F90` — Surface forcing (analytical wind stress)
 - `usrdef_istate.F90` — Initial state
-
-To customize forcing or initial conditions, copy the relevant `usrdef_*.F90` from `nemo/src/OCE/USR/` into `MY_SRC/` and modify.
 
 ## Build
 
