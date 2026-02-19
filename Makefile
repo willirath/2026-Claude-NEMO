@@ -3,6 +3,7 @@ GHCR_IMAGE := ghcr.io/willirath/2026-claude-nemo
 OUTPUT_DIR := output
 SIF ?= $(CURDIR)/nemo-gyre.sif
 NP ?= 4
+NN_WRITE ?= 300
 
 .PHONY: all build run analyze postproc postproc-singularity slides clean push
 
@@ -48,7 +49,8 @@ define _POSTPROC_COPY_AND_FIX
 	trap 'rm -rf $$tmpdir' EXIT; \
 	cp $(OUTPUT_DIR)/*_[0-9][0-9][0-9][0-9].nc $$tmpdir/ \
 		2>/dev/null || { echo "No processor files found in $(OUTPUT_DIR)"; exit 1; }; \
-	pixi run python analysis/fix_numrecs.py $$tmpdir; \
+	cp $(OUTPUT_DIR)/time.step $$tmpdir/; \
+	pixi run python analysis/fix_numrecs.py $$tmpdir $(NN_WRITE); \
 	$(1) bash -c '$(_POSTPROC_REBUILD)'; \
 	cp $$tmpdir/*_grid_*.nc $(OUTPUT_DIR)/; \
 	cp $$tmpdir/mesh_mask.nc $(OUTPUT_DIR)/ 2>/dev/null || true; \
