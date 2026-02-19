@@ -13,7 +13,7 @@ GYRE configuration — an idealized double-gyre basin on a beta-plane.
 | [vorticity.ipynb](analysis/vorticity.ipynb) | | |
 
 [![Eddy snapshots](figures/eddy_snapshots.png)](figures/eddy_snapshots.png)
-*Eddy snapshots — [eddies.ipynb](analysis/eddies.ipynb)*
+[eddies.ipynb](analysis/eddies.ipynb)
 
 ## Prerequisites
 
