@@ -24,52 +24,76 @@ REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 export SINGULARITY_CACHEDIR=${SINGULARITY_CACHEDIR:-$REPO_DIR/.singularity_cache}
 
 SIF=${SIF:-$REPO_DIR/nemo-gyre.sif}
-RUNDIR=${RUNDIR:-$REPO_DIR/runs/run_$$}  # TODO: use $SLURM_JOB_ID instead of $$
+RUNDIR=${RUNDIR:-$REPO_DIR/runs/run_${SLURM_JOB_ID:-$$}}
 mkdir -p "$RUNDIR"
 
-# Copy namelists out of container for editing, then bind-mount back
-singularity exec --bind "$RUNDIR:$RUNDIR" "$SIF" cp /opt/nemo-run/namelist_cfg "$RUNDIR/namelist_cfg"
+# Copy namelists out of container once; namelist_cfg.orig is the clean template
+singularity exec --bind "$RUNDIR:$RUNDIR" "$SIF" cp /opt/nemo-run/namelist_cfg "$RUNDIR/namelist_cfg.orig"
 singularity exec --bind "$RUNDIR:$RUNDIR" "$SIF" cp /opt/nemo-run/namelist_ref "$RUNDIR/namelist_ref"
 
-# Override nn_itend if NEMO_ITEND is set (default: keep container value)
-if [ -n "$NEMO_ITEND" ]; then
-  sed -i "s/nn_itend *=.*/nn_itend = $NEMO_ITEND/" "$RUNDIR/namelist_cfg"
-  sed -i "s/nn_stock *=.*/nn_stock = $NEMO_ITEND/" "$RUNDIR/namelist_cfg"
-fi
-
-# Run NEMO with container MPI (single-node, shared-memory only)
-NP=$SLURM_NTASKS
-export OMPI_MCA_orte_tmpdir_base=/tmp
-singularity exec --bind "$RUNDIR:/opt/nemo-run" --pwd /opt/nemo-run "$SIF" \
-  mpirun -np "$NP" /opt/nemo-configs/GYRE_DOCKER/EXP00/nemo
-
-# Rebuild multi-rank output (serial, inside container)
-singularity exec --bind "$RUNDIR:/opt/nemo-run" "$SIF" bash -c "
-  cd /opt/nemo-run
-  for f in *_grid_T_0000.nc *_grid_U_0000.nc *_grid_V_0000.nc *_grid_W_0000.nc; do
-    [ -f \"\$f\" ] || continue
-    base=\${f%_0000.nc}
-    /opt/nemo-code/tools/REBUILD_NEMO/rebuild_nemo \${base} $NP && \
-      rm -f \${base}_[0-9][0-9][0-9][0-9].nc
-  done
-  if [ -f mesh_mask_0000.nc ]; then
-    /opt/nemo-code/tools/REBUILD_NEMO/rebuild_nemo mesh_mask $NP && \
-      rm -f mesh_mask_[0-9][0-9][0-9][0-9].nc
-  fi
-"
-
-# Fix IOIPSL '360d' → CF-compliant '360_day'
-for f in "$RUNDIR"/*_grid_*.nc; do
-  [ -f "$f" ] || continue
-  ncatted -h -a calendar,time_counter,m,c,"360_day" "$f"
-done
-
-# Symlink output/ to this run so analysis notebooks find the data
+# Symlink output/ now so 'make analyze' works for a preliminary look at any time
 rm -f "$REPO_DIR/output"
 ln -s "$RUNDIR" "$REPO_DIR/output"
 
-echo "Output in $RUNDIR (symlinked to $REPO_DIR/output)"
+# ---------------------------------------------------------------------------
+# Cycled run: NEMO_CYCLE steps per cycle (default 10800 = 1 year at rn_Dt=2880)
+# Total run length: NEMO_ITEND steps (default 637200 = 59 years)
+# ---------------------------------------------------------------------------
+NEMO_CYCLE=${NEMO_CYCLE:-10800}
+NEMO_ITEND=${NEMO_ITEND:-637200}
+NP=$SLURM_NTASKS
+export OMPI_MCA_orte_tmpdir_base=/tmp
+
+nn_it000=1
+while [ "$nn_it000" -le "$NEMO_ITEND" ]; do
+    nn_itend=$((nn_it000 + NEMO_CYCLE - 1))
+    [ "$nn_itend" -gt "$NEMO_ITEND" ] && nn_itend=$NEMO_ITEND
+
+    echo "=== Cycle: steps $nn_it000 → $nn_itend ==="
+
+    # Restore clean namelist for this cycle
+    cp "$RUNDIR/namelist_cfg.orig" "$RUNDIR/namelist_cfg"
+    sed -i "s/nn_it000 *=.*/nn_it000 = $nn_it000/" "$RUNDIR/namelist_cfg"
+    sed -i "s/nn_itend *=.*/nn_itend = $nn_itend/" "$RUNDIR/namelist_cfg"
+
+    # All cycles after the first restart from the previous cycle's last step
+    if [ "$nn_it000" -gt 1 ]; then
+        prev_step=$(printf '%08d' $((nn_it000 - 1)))
+        sed -i "s/ln_rstart *=.*/ln_rstart = .true./" "$RUNDIR/namelist_cfg"
+        sed -i "s/cn_ocerst_indir *=.*/cn_ocerst_indir = \".\"/" "$RUNDIR/namelist_cfg"
+        sed -i "s/cn_ocerst_in *=.*/cn_ocerst_in = \"GYRE_${prev_step}_restart\"/" "$RUNDIR/namelist_cfg"
+    fi
+
+    # Run NEMO
+    singularity exec --bind "$RUNDIR:/opt/nemo-run" --pwd /opt/nemo-run "$SIF" \
+        mpirun -np "$NP" /opt/nemo-configs/GYRE_DOCKER/EXP00/nemo
+
+    # Rebuild multi-rank output for this cycle
+    singularity exec --bind "$RUNDIR:/opt/nemo-run" "$SIF" bash -c "
+        cd /opt/nemo-run
+        for f in *_grid_T_0000.nc *_grid_U_0000.nc *_grid_V_0000.nc *_grid_W_0000.nc; do
+            [ -f \"\$f\" ] || continue
+            base=\${f%_0000.nc}
+            /opt/nemo-code/tools/REBUILD_NEMO/rebuild_nemo \${base} $NP && \
+                rm -f \${base}_[0-9][0-9][0-9][0-9].nc
+        done
+        if [ -f mesh_mask_0000.nc ]; then
+            /opt/nemo-code/tools/REBUILD_NEMO/rebuild_nemo mesh_mask $NP && \
+                rm -f mesh_mask_[0-9][0-9][0-9][0-9].nc
+        fi
+    "
+
+    # Fix IOIPSL '360d' → CF-compliant '360_day' on any newly rebuilt files
+    for f in "$RUNDIR"/*_grid_*.nc; do
+        [ -f "$f" ] || continue
+        ncatted -h -a calendar,time_counter,m,c,"360_day" "$f"
+    done
+
+    nn_it000=$((nn_itend + 1))
+done
+
+echo "All cycles complete. Output in $RUNDIR"
 ls -lh "$RUNDIR"/*.nc
 
-# Run analysis notebooks (serial, reusing the allocation)
+# Run analysis notebooks
 make -C "$REPO_DIR" analyze

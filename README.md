@@ -43,21 +43,17 @@ make push
 
 # 2. NESH: pull image and submit job (see hpc/README.md for full setup)
 singularity pull --force nemo-gyre.sif docker://ghcr.io/willirath/2026-claude-nemo:latest
-sbatch hpc/job.sh          # full 59-year run; runs analyze automatically on finish
+sbatch hpc/job.sh          # full 59-year run; output rebuilt after each 1-yr cycle
 
-# 3. NESH: intermediate snapshot while run is in progress
-OUTPUT_DIR=runs/run_<PID> make postproc-singularity   # rebuild processor files
-OUTPUT_DIR=runs/run_<PID> make analyze                 # run notebooks
+# 3. NESH: preliminary look while job is running
+OUTPUT_DIR=runs/run_<JOBID> make analyze
 ```
 
-Override number of timesteps (e.g. 10-year test run at rn_Dt=2880):
+Override total timesteps or cycle length:
 ```bash
-NEMO_ITEND=108000 sbatch hpc/job.sh
+NEMO_ITEND=32400 sbatch hpc/job.sh              # 3-year test run
+NEMO_CYCLE=108000 sbatch hpc/job.sh             # 10-year cycles instead of 1-year
 ```
-
-`postproc-singularity` copies processor files to a scratch directory, patches
-the IOIPSL-unflushed `numrecs` header field, runs `rebuild_nemo`, then copies
-the combined files back — leaving the originals untouched for the running job.
 
 ## Output
 

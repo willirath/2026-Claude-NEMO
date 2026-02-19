@@ -23,6 +23,10 @@
    nn_stock    =  540000   !  frequency of creation of a restart file (every 50 years)
    nn_write    =     300   !  frequency of write in the output file   (modulo referenced to nn_it000)
    nn_istate   =       0   !  output the initial state (1) or not (0)
+   ln_rstart   = .false.   !  start from rest (F) or from restart file (T)
+   nn_rstctl   = 2         !  restart control: read ndastp+adatrj from restart (required for correct date in cycled runs)
+   cn_ocerst_in    = "restart"  !  restart filename base (input); patched by job.sh
+   cn_ocerst_indir = "."        !  directory for input restart files
 /
 !-----------------------------------------------------------------------
 &namcfg        !   parameters of the configuration                      (default: user defined GYRE)
