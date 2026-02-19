@@ -24,7 +24,7 @@ REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 export SINGULARITY_CACHEDIR=${SINGULARITY_CACHEDIR:-$REPO_DIR/.singularity_cache}
 
 SIF=${SIF:-$REPO_DIR/nemo-gyre.sif}
-RUNDIR=${RUNDIR:-$REPO_DIR/runs/run_${SLURM_JOB_ID:-$$}}
+RUNDIR=${RUNDIR:-$REPO_DIR/runs/run_${SLURM_JOB_ID:?SLURM_JOB_ID not set – submit via sbatch}}
 mkdir -p "$RUNDIR"
 
 # Copy namelists out of container once; namelist_cfg.orig is the clean template
