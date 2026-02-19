@@ -52,7 +52,7 @@ def load_output(pattern: str, output_dir: str | Path) -> xr.Dataset:
     for coord in ("nav_lon", "nav_lat"):
         if coord in ds and "time_counter" in ds[coord].dims:
             ds[coord] = ds[coord].isel(time_counter=0).drop_vars("time_counter")
-    return ds
+    return ds.load()
 
 
 def load_mesh(output_dir: str | Path) -> xr.Dataset:
