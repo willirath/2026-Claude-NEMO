@@ -45,7 +45,7 @@ def load_output(pattern: str, output_dir: str | Path) -> xr.Dataset:
         raise FileNotFoundError(
             f"No files matching '{pattern}' in {output_dir}"
         )
-    ds = xr.open_mfdataset(files, decode_cf=False)
+    ds = xr.open_mfdataset(files, decode_cf=False, chunks=-1)
     ds = _rename_depth(ds)
     ds = _assign_xy_coords(ds)
     # IOIPSL stores nav_lon/nav_lat with a time_counter dim; drop it
